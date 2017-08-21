@@ -47,6 +47,12 @@ library(tidyverse)
 library(lubridate)
 library(stringr)
 library(gridExtra)
+library(timekit)
+library(caret)
+library(tidyquant)
+library(broom)
+library(modelr)
+library(TTR)
 @
 
 \section{2017-08-11}
@@ -191,18 +197,104 @@ ggplot(data=poll.results.13.g,aes(x=Date)) +
 
 The polling period is very long (4 years) and the fortunes of the parties change considerably. Using the whole dataset to make a prediction seems wrong: the poll results closer to the election date should carry more weight. We can make predictions for the different parties based on different time scales.
 
-Let's first group the results by party, year, month and summarize the mean poll result per month:
+\subsection{Time series}
+
+Let's first group the results by party, year, month and summarize the mean poll result per month and turn it in a time series object \footnote{''Using R for Time Seris Analysis", \url{http://a-little-book-of-r-for-time-series.readthedocs.io/en/latest/src/timeseries.html}}. The starting point of a time series object is a \textbf{vector} of the different readings of the value in time, with a fixed time-interval and sorted from earliest to latest. The poll's are not held on fixed dates so we first calculate the mean value of the polls for a month (or a week ...). We sort them per party and make a time series starting on Oct 2009 and ending in Sep 2013, with a monthly frequency (frequency=12):
 
 <<>>=
 poll.results.13.g %>% 
   select(Date, year, party, poll.res) %>% 
   group_by(party, year, month(Date)) %>% 
   summarise(month.avg=round(mean(poll.res),2)) -> monthly.avg
-monthly.avg %>% 
-  filter(party=="CDU.CSU") %>% 
-  spread(`month(Date)`,month.avg) -> month.CDU.CSU
-month.CDU.CSU
+monthly.avg %>% rename(maand=`month(Date)`) -> monthly.avg
+monthly.avg$datum <- ymd("2009/01/01")
+for (i in (1:nrow(monthly.avg))) {
+  monthly.avg$datum[i] <- ymd(paste(monthly.avg$year[i],as.character(monthly.avg$maand[i]),"01",sep="/"))
+}
 @
 
+<<label=TimeSeries1,fig=TRUE,include=FALSE, echo=FALSE>>=
+# A time series for CDU.CSU
+monthly.avg %>% filter(party=="CDU.CSU") %>% select(datum, month.avg) %>% arrange(datum) %>% select(month.avg)-> month.CDU.CSU
+month.CDU.CSU.ts <- ts(month.CDU.CSU[3], start=c(2009,10), end=c(2013,9), frequency=12)
+plot.ts(month.CDU.CSU.ts)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-TimeSeries1}
+\captionof{figure}{Unsmoothed plot for CDU.CSU polls 2013}
+\label{fig:AfD-TimeSeries1}
+\end{center}
+
+\subsection{Effects of smoothing}
+
+<<label=TimeSeries2,fig=TRUE,include=FALSE, echo=FALSE>>=
+# A smoothing with n=3 (three months rolling average)
+month.CDU.CSU.SMA3 <- SMA(month.CDU.CSU.ts, n=3)
+plot.ts(month.CDU.CSU.SMA3)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-TimeSeries2}
+\captionof{figure}{Smoothed plot(n=3) for CDU.CSU polls 2013}
+\label{fig:AfD-TimeSeries2}
+\end{center}
+
+<<label=TimeSeries3,fig=TRUE,include=FALSE, echo=FALSE>>=
+# A smoothing with n=8 (three months rolling average)
+month.CDU.CSU.SMA3 <- SMA(month.CDU.CSU.ts, n=8)
+plot.ts(month.CDU.CSU.SMA3)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-TimeSeries3}
+\captionof{figure}{Smoothed plot (n=8) for CDU.CSU polls 2013}
+\label{fig:AfD-TimeSeries3}
+\end{center}
+
+\subsection{Decomposing: is there a trend? a seasonal component?}
+
+<<label=Decompose1,fig=TRUE,include=FALSE, echo=FALSE>>=
+# Decomposing
+month.CDU.CSU.components <- decompose(month.CDU.CSU.ts)
+plot(month.CDU.CSU.components)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-Decompose1}
+\captionof{figure}{Decomposition of CDU.CSU polls 2013}
+\label{fig:AfD-Decompose1}
+\end{center}
+
+There seems to be a gradual rise (trend) and a recurring pattern (seasonality): CDU.CSU seems to do well in winter! But the effect is small: the amplitude is about 1.5\% while the trend effect is 6\%. We can remove the seasonal effect:
+
+<<label=Decompose2,fig=TRUE,include=FALSE, echo=FALSE>>=
+# Decomposing
+month.CDU.CSU.components <- decompose(month.CDU.CSU.ts)
+month.CDU.CSU.adj <- month.CDU.CSU.ts - month.CDU.CSU.components$seasonal
+plot(month.CDU.CSU.adj)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-Decompose2}
+\captionof{figure}{Evolution of CDU.CSU polls 2013 adjusted for seasonality}
+\label{fig:AfD-Decompose2}
+\end{center}
+
+\subsection{Forecasting using Exponential Smoothing}
+
+\subsubsection{If there is no trend and no seasonality: HoltWinters with $\beta$=0 and $\gamma$=0}
+<<label=Forecast1,fig=TRUE,include=FALSE, echo=FALSE>>=
+CDU.CSU.forecast <- HoltWinters(month.CDU.CSU.ts, beta=FALSE, gamma=FALSE)
+plot(CDU.CSU.forecast)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-Forecast1}
+\captionof{figure}{Forecast based on CDU.CSU polls 2013}
+\label{fig:AfD-Forecast1}
+\end{center}
+
+This simply follows the data with some delay.
 
 \end{document}
