@@ -1,0 +1,207 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage{graphicx} % werken met figuren
+\usepackage{gensymb} % werken met wetenschappelijke eenheden\usepackage{geometry}
+\usepackage{changepage} % http://ctan.org/pkg/changepage
+\usepackage[total={424pt,600pt},top=100pt,left=90pt]{geometry} % instelling van de paginaindeling
+\usepackage[dutch,british]{babel} % instelling van de taal (woordsplitsing, spellingscontrole)
+\usepackage[parfill]{parskip} % Paragrafen gescheiden door witte lijn en geen inspringing
+\usepackage{layout} % Gebruik in het begin om de layout-elementen van het document te verifiëren
+\usepackage[font=small,skip=3pt]{caption} % Minder ruimte tussen figuur/table en ondertitel. Ondertitel klein
+\usepackage{capt-of}
+\usepackage{indentfirst}
+\setlength{\parindent}{0.7cm}
+\usepackage{enumitem} % Laat enumerate werken met letters
+\usepackage{hyperref}
+\usepackage{url}
+
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+
+% Alter some LaTeX defaults for better treatment of figures:
+% See p.105 of "TeX Unbound" for suggested values.
+% See pp. 199-200 of Lamport's "LaTeX" book for details.
+%   General parameters, for ALL pages:
+    \renewcommand{\topfraction}{0.9}	% max fraction of floats at top
+    \renewcommand{\bottomfraction}{0.9}	% max fraction of floats at bottom
+%   Parameters for TEXT pages (not float pages):
+    \setcounter{topnumber}{2}
+    \setcounter{bottomnumber}{2}
+    \setcounter{totalnumber}{4}     % 2 may work better
+    \renewcommand{\textfraction}{0.1}	% allow minimal text w. figs
+%   Parameters for FLOAT pages (not text pages):
+    \renewcommand{\floatpagefraction}{0.8}	% require fuller float pages
+% N.B.: floatpagefraction MUST be less than topfraction !!
+\setcounter{secnumdepth}{3}
+
+\title{What percentage of the popular vote will the Alternative for Germany party win in Germany's next federal election?}
+\author{Jan Trommelmans}
+
+\begin{document}
+\date{}
+\SweaveOpts{concordance=TRUE,prefix.string=AfD}
+\maketitle
+
+
+<<>>=
+library(rvest)
+library(tidyverse)
+library(lubridate)
+library(stringr)
+library(gridExtra)
+@
+
+\section{2017-08-11}
+
+Getting the poll-results and cleaning up:
+
+\url{https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017}
+
+<<echo=FALSE>>=
+# Getting the data
+writeday <- ymd("2017-08-11")
+GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
+GermElurl %>% 
+  read_html %>%
+  html_nodes("table") -> tablelist
+poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
+# Cleaning up
+# Rename vars to names of political parties
+poll.results <- rename(poll.results, CDUCSU = Var.4, SPD = Var.5, DieLinke = Var.6, Grune = Var.7, FDP = Var.8, AfD =  Var.9)
+# Remove (double) first row
+poll.results <- poll.results[-1,]
+# Get rid of the Unicode characters
+n <- nrow(poll.results)
+for (i in (1:n)) {
+  x <- poll.results$Fieldwork.date[i]
+  poll.results$Fieldwork.date[i] <- ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),substr(x,nchar(x)-10,nchar(x)),substr(x,nchar(x)-9,nchar(x)))
+}
+# End.date in date-format
+poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
+# Get rid of last three rows
+poll.results <- poll.results[1:(n-3),]
+# Keep only the data up until the day of writing this section
+poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+@
+
+Plot of AfD-polls:
+
+<<label=AfD1,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data=poll.results,aes(x=Fieldwork.date)) + 
+  geom_point(aes(y=AfD),colour="black") +
+  stat_smooth(aes(y=AfD))
+@
+
+\begin{center}
+\includegraphics[width=0.7\textwidth]{AfD-AfD1}
+\captionof{figure}{Polling results for AfD}
+\label{fig:AfD1}
+\end{center}
+
+Since May 15th the polls for AfD have been consistently below 10\% and never below 6.5\%. The range of the 95\% confidence interval is (low) 8\% and (high) 9\%.
+
+\textbf{Forecast1: <5\%: 0\%, ]5\%-10\%]: 90\%, ]10\%-15\%]: 10\% and >=15\%: 0\%.}
+
+\section{2017-08-16}
+
+How good are German polls in predicting the end result? Let's try it for the Bundestag elections in 2013:
+
+\url{https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2013}
+
+<<>>=
+# Getting the data
+GermEl13url <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2013"
+GermEl13url %>% 
+  read_html %>%
+  html_nodes("table") -> tablelist
+poll.results.13 <- as.data.frame(html_table(tablelist[1],fill=TRUE))
+# Cleaning up
+# Remove (double) first row
+poll.results.13 <- poll.results.13[-1,]
+# Change the name GR.U.00DC.NE to Grune
+poll.results.13 <- rename(poll.results.13, Grune=GR.U.00DC.NE)
+# Delete rows with year subtotals
+poll.results.13 <- poll.results.13[-194,]
+poll.results.13 <- poll.results.13[-404,]
+poll.results.13 <- poll.results.13[-580,]
+poll.results.13 <- poll.results.13[-752,]
+poll.results.13 <- poll.results.13[-795,]
+# Renumbering the rows
+row.names(poll.results.13) <- 1:nrow(poll.results.13)
+# Adding year
+poll.results.13$year[1:794] <- ""
+poll.results.13$year[1:193] <- "2013"
+poll.results.13$year[194:403] <- "2012"
+poll.results.13$year[404:579] <- "2011"
+poll.results.13$year[580:751] <- "2010"
+poll.results.13$year[752:794] <- "2009"
+# Reformat date of first row
+poll.results.13$Date[1] <- "22 Sep"
+poll.results.13$Date <- paste(poll.results.13$Date,poll.results.13$year)
+# Reformat Date with as.Date
+poll.results.13$Date <- as.Date(poll.results.13$Date,format="%d %B %Y")
+# Replace "-" with NA for PIRATEN, AfD, Others and Lead
+poll.results.13$PIRATEN <- as.numeric(poll.results.13$PIRATEN)
+poll.results.13$AfD <- as.numeric(poll.results.13$AfD)
+poll.results.13$Others <- as.numeric(poll.results.13$Others)
+poll.results.13$Lead <- as.numeric(poll.results.13$Lead)
+@
+
+Store the election results (first row) in a separate vector from the polling data, and delete the first row
+
+<<>>=
+election.result <- poll.results.13[1,]
+poll.results.13 <- poll.results.13[2:nrow(poll.results.13),]
+@
+
+
+Tidying the data:
+<<echo=FALSE>>=
+poll.results.13.g <- gather(poll.results.13,"party","poll.res",3:10)
+@
+
+Getting a first picture:
+<<label=2013a,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data=poll.results.13.g,aes(x=Date)) + 
+  geom_line(aes(y=poll.res,colour=party)) 
+@
+
+\begin{center}
+\includegraphics[width=0.6\textwidth]{AfD-2013a}
+\captionof{figure}{Polling results for 2013 election}
+\label{fig:2013a}
+\end{center}
+
+Something is wrong with the data of ''Others" at the end of September 2013. On the Wikipedia page there is an obvious error on Sept 12th: the number should be 4.0 instead of 40.
+
+Correction:
+
+<<>>=
+poll.results.13.g$poll.res[poll.results.13.g$party=="Others" & poll.results.13.g$poll.res==40] <- 4.0 
+@
+
+<<label=2013b,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data=poll.results.13.g,aes(x=Date)) + 
+  geom_line(aes(y=poll.res,colour=party)) 
+@
+
+\begin{center}
+\includegraphics[width=0.6\textwidth]{AfD-2013b}
+\captionof{figure}{Polling results for 2013 election - after correction}
+\label{fig:2013b}
+\end{center}
+
+The polling period is very long (4 years) and the fortunes of the parties change considerably. Using the whole dataset to make a prediction seems wrong: the poll results closer to the election date should carry more weight. We can make predictions for the different parties based on different time scales.
+
+Let's first group the results by party, year, month and summarize the mean poll result per month:
+
+<<>>=
+poll.results.13.g %>% 
+  select(Date, year, party, poll.res) %>% 
+  group_by(party, year, month(Date)) %>% 
+  summarise(month.avg=round(mean(poll.res),2)) -> monthly.avg
+monthly.avg %>% 
+  filter(party=="CDU.CSU") %>% 
+  spread(`month(Date)`,month.avg) -> month.CDU.CSU
+month.CDU.CSU
+@
+
+\end{document}
