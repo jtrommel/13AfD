@@ -204,6 +204,5 @@ monthly.avg %>%
 month.CDU.CSU
 @
 
-Een verandering
 
 \end{document}
