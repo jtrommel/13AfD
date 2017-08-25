@@ -47,12 +47,8 @@ library(tidyverse)
 library(lubridate)
 library(stringr)
 library(gridExtra)
-library(timekit)
-library(caret)
-library(tidyquant)
-library(broom)
-library(modelr)
 library(TTR)
+library(forecast)
 @
 
 \section{2017-08-11}
@@ -71,14 +67,23 @@ GermElurl %>%
 poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
 # Cleaning up
 # Rename vars to names of political parties
-poll.results <- rename(poll.results, CDUCSU = Var.4, SPD = Var.5, DieLinke = Var.6, Grune = Var.7, FDP = Var.8, AfD =  Var.9)
+poll.results <- rename(poll.results, 
+                       CDUCSU = Var.4, 
+                       SPD = Var.5, 
+                       DieLinke = Var.6, 
+                       Grune = Var.7, 
+                       FDP = Var.8, 
+                       AfD =  Var.9)
 # Remove (double) first row
 poll.results <- poll.results[-1,]
 # Get rid of the Unicode characters
 n <- nrow(poll.results)
 for (i in (1:n)) {
   x <- poll.results$Fieldwork.date[i]
-  poll.results$Fieldwork.date[i] <- ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),substr(x,nchar(x)-10,nchar(x)),substr(x,nchar(x)-9,nchar(x)))
+  poll.results$Fieldwork.date[i] <- 
+    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
+           substr(x,nchar(x)-10,nchar(x)),
+           substr(x,nchar(x)-9,nchar(x)))
 }
 # End.date in date-format
 poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
@@ -97,7 +102,7 @@ ggplot(data=poll.results,aes(x=Fieldwork.date)) +
 @
 
 \begin{center}
-\includegraphics[width=0.7\textwidth]{AfD-AfD1}
+\includegraphics[width=0.5\textwidth]{AfD-AfD1}
 \captionof{figure}{Polling results for AfD}
 \label{fig:AfD1}
 \end{center}
@@ -215,7 +220,10 @@ for (i in (1:nrow(monthly.avg))) {
 
 <<label=TimeSeries1,fig=TRUE,include=FALSE, echo=FALSE>>=
 # A time series for CDU.CSU
-monthly.avg %>% filter(party=="CDU.CSU") %>% select(datum, month.avg) %>% arrange(datum) %>% select(month.avg)-> month.CDU.CSU
+monthly.avg %>% filter(party=="CDU.CSU") %>% 
+  select(datum, month.avg) %>% 
+  arrange(datum) %>% 
+  select(month.avg)-> month.CDU.CSU
 month.CDU.CSU.ts <- ts(month.CDU.CSU[3], start=c(2009,10), end=c(2013,9), frequency=12)
 plot.ts(month.CDU.CSU.ts)
 @
@@ -242,8 +250,8 @@ plot.ts(month.CDU.CSU.SMA3)
 
 <<label=TimeSeries3,fig=TRUE,include=FALSE, echo=FALSE>>=
 # A smoothing with n=8 (three months rolling average)
-month.CDU.CSU.SMA3 <- SMA(month.CDU.CSU.ts, n=8)
-plot.ts(month.CDU.CSU.SMA3)
+month.CDU.CSU.SMA8 <- SMA(month.CDU.CSU.ts, n=8)
+plot.ts(month.CDU.CSU.SMA8)
 @
 
 \begin{center}
@@ -283,18 +291,77 @@ plot(month.CDU.CSU.adj)
 
 \subsection{Forecasting using Exponential Smoothing}
 
-\subsubsection{If there is no trend and no seasonality: HoltWinters with $\beta$=0 and $\gamma$=0}
-<<label=Forecast1,fig=TRUE,include=FALSE, echo=FALSE>>=
-CDU.CSU.forecast <- HoltWinters(month.CDU.CSU.ts, beta=FALSE, gamma=FALSE)
-plot(CDU.CSU.forecast)
+(Read first: ''ForeCast.pdf" in folder ''ForeCast" in ''R")
+
+\subsubsection{Simple Exponential Smoothing: if there is no trend and no seasonality: HoltWinters with beta=FALSE and gamma=FALSE}
+
+<<label=SES1,fig=TRUE,include=FALSE, echo=FALSE>>=
+CDU.CSU.ses <- HoltWinters(month.CDU.CSU.ts, beta=FALSE, gamma=FALSE)
+plot(CDU.CSU.ses)
+CDU.CSU.ses[["alpha"]]
 @
 
 \begin{center}
-\includegraphics[width=0.5\textwidth]{AfD-Forecast1}
-\captionof{figure}{Forecast based on CDU.CSU polls 2013}
-\label{fig:AfD-Forecast1}
+\includegraphics[width=0.5\textwidth]{AfD-SES1}
+\captionof{figure}{Single Exponential Smoothing of CDU.CSU polls 2013}
+\label{fig:AfD-SES1}
 \end{center}
 
-This simply follows the data with some delay.
+This simply follows the data with some delay. This is logical: when you put beta=gamma=FALSE your only remaining co{\"e}fficient is alpha, which is a single exponential smoothing of the observed values. When you do not propose a value for alpha, HoltWinters will determine that value that minimizes an error function. This value is here: $\alpha$=\Sexpr{round(CDU.CSU.ses[["alpha"]],3)}.
+
+We can make a forecast (for 5 months: h=5) based on this model:
+
+<<label=SES2,fig=TRUE,include=FALSE, echo=FALSE>>=
+CDU.CSU.fc.ses <- forecast.HoltWinters(CDU.CSU.ses, h=5)
+CDU.CSU.fc.ses
+plot.forecast(CDU.CSU.fc.ses)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-SES2}
+\captionof{figure}{Single Exponential Smoothing Forecast based on CDU.CSU polls 2013}
+\label{fig:AfD-SES2}
+\end{center}
+
+This method (Simple Exponential Smoothing) is not appropriate for the CDU.CSU-data which have a clear trend and seasonality. There is a check for the appropriateness of SSE. The in-sample forecast errors are stored in ''residuals" and there should be no correlation between forecast errors of successive predictions. Thsi can be tested with eht ''acf"-function:
+
+<<label=SESauto,fig=TRUE,include=FALSE, echo=FALSE>>=
+acf(CDU.CSU.fc.ses$residuals, lag.max=20, na.action=na.omit)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-SESauto}
+\captionof{figure}{Correlation beween residuals of at different time points}
+\label{fig:AfD-SESauto}
+\end{center}
+
+\subsubsection{Double Exponential Smoothing: there is a trend but no seasonality: HoltWinters with gamma=FALSE}
+
+<<label=DES1,fig=TRUE,include=FALSE, echo=FALSE>>=
+CDU.CSU.des <- HoltWinters(month.CDU.CSU.ts, gamma=FALSE)
+plot(CDU.CSU.des)
+CDU.CSU.des[["alpha"]]
+CDU.CSU.des[["beta"]]
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-DES1}
+\captionof{figure}{Double Exponential Smoothing of CDU.CSU polls 2013}
+\label{fig:AfD-DES1}
+\end{center}
+
+Forecast (for 5 months: h=5) based on this model:
+
+<<label=DES2,fig=TRUE,include=FALSE, echo=FALSE>>=
+CDU.CSU.fc.des <- forecast.HoltWinters(CDU.CSU.des, h=5)
+CDU.CSU.fc.des
+plot.forecast(CDU.CSU.fc.des)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-DES2}
+\captionof{figure}{Double Exponential Smoothing Forecast based on CDU.CSU polls 2013}
+\label{fig:AfD-DES2}
+\end{center}
 
 \end{document}
