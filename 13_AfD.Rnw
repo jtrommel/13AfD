@@ -323,7 +323,7 @@ plot.forecast(CDU.CSU.fc.ses)
 \label{fig:AfD-SES2}
 \end{center}
 
-This method (Simple Exponential Smoothing) is not appropriate for the CDU.CSU-data which have a clear trend and seasonality. There is a check for the appropriateness of SSE. The in-sample forecast errors are stored in ''residuals" and there should be no correlation between forecast errors of successive predictions. Thsi can be tested with eht ''acf"-function:
+This method (Simple Exponential Smoothing) is not appropriate for the CDU.CSU-data which have a clear trend and seasonality. There is a check for the appropriateness of SSE. The in-sample forecast errors are stored in ''residuals" and there should be no correlation between forecast errors of successive predictions. This can be viewed with the ''acf"-function:
 
 <<label=SESauto,fig=TRUE,include=FALSE, echo=FALSE>>=
 acf(CDU.CSU.fc.ses$residuals, lag.max=20, na.action=na.omit)
@@ -334,6 +334,29 @@ acf(CDU.CSU.fc.ses$residuals, lag.max=20, na.action=na.omit)
 \captionof{figure}{Correlation beween residuals of at different time points}
 \label{fig:AfD-SESauto}
 \end{center}
+
+and tested with the ''Box"-test:
+
+<<>>=
+Box.test(CDU.CSU.fc.ses$residuals, lag=20, type="Ljung-Box")
+@
+
+The residuals should be normaly distributed:
+
+<<label=SESres,fig=TRUE,include=FALSE, echo=FALSE>>=
+res <- as.data.frame(CDU.CSU.fc.ses$residuals)$x
+res[1] <- 0
+qqnorm(res)
+qqline(res,col="red")
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-SESres}
+\captionof{figure}{Plot of residuals}
+\label{fig:AfD-SESres}
+\end{center}
+
+This does not bring greater clarity!
 
 \subsubsection{Double Exponential Smoothing: there is a trend but no seasonality: HoltWinters with gamma=FALSE}
 
