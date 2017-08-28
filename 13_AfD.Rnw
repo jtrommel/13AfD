@@ -51,13 +51,36 @@ library(TTR)
 library(forecast)
 @
 
+<<>>=
+plotForecastErrors <- function(forecasterrors) {
+  # make a histogram of the forecast errors:
+  mybinsize <- IQR(forecasterrors)/4
+  mysd <- sd(forecasterrors)
+  mymin <- min(forecasterrors) - mysd*3
+  mymax <- max(forecasterrors) + mysd*3
+  # generate normally distributed data with mean 0 and standarddeviation mysd
+  mynorm <- rnorm(10000, mean=0, sd=mysd)
+  mymin2 <- min(mynorm)
+  mymax2 <- max(mynorm)
+  if (mymin2 < mymin) {mymin <- mymin2}
+  if (mymax2 > mymax) {mymax <- mymax2}
+  # make a red histogram of the forecasterrors , with the normally distributed data overlaid
+  mybins <- seq(mymin, mymax, mybinsize)
+  hist(forecasterrors, col="red", freq=FALSE, breaks=mybins)
+  # freq=FALSE ensures the area under the histogram=1
+  myhist <- hist(mynorm, plot=FALSE, breaks=mybins)
+  # plot the normal curve as a blue line on top of the histogram of forecasterrors
+  points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
+}
+@
+
 \section{2017-08-11}
 
 Getting the poll-results and cleaning up:
 
 \url{https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017}
 
-<<echo=FALSE>>=
+<<echo=TRUE>>=
 # Getting the data
 writeday <- ymd("2017-08-11")
 GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
@@ -95,7 +118,7 @@ poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
 
 Plot of AfD-polls:
 
-<<label=AfD1,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=AfD1,fig=TRUE,include=FALSE, echo=TRUE>>=
 ggplot(data=poll.results,aes(x=Fieldwork.date)) + 
   geom_point(aes(y=AfD),colour="black") +
   stat_smooth(aes(y=AfD))
@@ -165,12 +188,12 @@ poll.results.13 <- poll.results.13[2:nrow(poll.results.13),]
 
 
 Tidying the data:
-<<echo=FALSE>>=
+<<echo=TRUE>>=
 poll.results.13.g <- gather(poll.results.13,"party","poll.res",3:10)
 @
 
 Getting a first picture:
-<<label=2013a,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=2013a,fig=TRUE,include=FALSE, echo=TRUE>>=
 ggplot(data=poll.results.13.g,aes(x=Date)) + 
   geom_line(aes(y=poll.res,colour=party)) 
 @
@@ -189,7 +212,7 @@ Correction:
 poll.results.13.g$poll.res[poll.results.13.g$party=="Others" & poll.results.13.g$poll.res==40] <- 4.0 
 @
 
-<<label=2013b,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=2013b,fig=TRUE,include=FALSE, echo=TRUE>>=
 ggplot(data=poll.results.13.g,aes(x=Date)) + 
   geom_line(aes(y=poll.res,colour=party)) 
 @
@@ -218,7 +241,7 @@ for (i in (1:nrow(monthly.avg))) {
 }
 @
 
-<<label=TimeSeries1,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=TimeSeries1,fig=TRUE,include=FALSE, echo=TRUE>>=
 # A time series for CDU.CSU
 monthly.avg %>% filter(party=="CDU.CSU") %>% 
   select(datum, month.avg) %>% 
@@ -236,7 +259,7 @@ plot.ts(month.CDU.CSU.ts)
 
 \subsection{Effects of smoothing}
 
-<<label=TimeSeries2,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=TimeSeries2,fig=TRUE,include=FALSE, echo=TRUE>>=
 # A smoothing with n=3 (three months rolling average)
 month.CDU.CSU.SMA3 <- SMA(month.CDU.CSU.ts, n=3)
 plot.ts(month.CDU.CSU.SMA3)
@@ -248,7 +271,7 @@ plot.ts(month.CDU.CSU.SMA3)
 \label{fig:AfD-TimeSeries2}
 \end{center}
 
-<<label=TimeSeries3,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=TimeSeries3,fig=TRUE,include=FALSE, echo=TRUE>>=
 # A smoothing with n=8 (three months rolling average)
 month.CDU.CSU.SMA8 <- SMA(month.CDU.CSU.ts, n=8)
 plot.ts(month.CDU.CSU.SMA8)
@@ -262,7 +285,7 @@ plot.ts(month.CDU.CSU.SMA8)
 
 \subsection{Decomposing: is there a trend? a seasonal component?}
 
-<<label=Decompose1,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=Decompose1,fig=TRUE,include=FALSE, echo=TRUE>>=
 # Decomposing
 month.CDU.CSU.components <- decompose(month.CDU.CSU.ts)
 plot(month.CDU.CSU.components)
@@ -276,7 +299,7 @@ plot(month.CDU.CSU.components)
 
 There seems to be a gradual rise (trend) and a recurring pattern (seasonality): CDU.CSU seems to do well in winter! But the effect is small: the amplitude is about 1.5\% while the trend effect is 6\%. We can remove the seasonal effect:
 
-<<label=Decompose2,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=Decompose2,fig=TRUE,include=FALSE, echo=TRUE>>=
 # Decomposing
 month.CDU.CSU.components <- decompose(month.CDU.CSU.ts)
 month.CDU.CSU.adj <- month.CDU.CSU.ts - month.CDU.CSU.components$seasonal
@@ -295,7 +318,7 @@ plot(month.CDU.CSU.adj)
 
 \subsubsection{Simple Exponential Smoothing: if there is no trend and no seasonality: HoltWinters with beta=FALSE and gamma=FALSE}
 
-<<label=SES1,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=SES1,fig=TRUE,include=FALSE, echo=TRUE>>=
 CDU.CSU.ses <- HoltWinters(month.CDU.CSU.ts, beta=FALSE, gamma=FALSE)
 plot(CDU.CSU.ses)
 CDU.CSU.ses[["alpha"]]
@@ -307,11 +330,17 @@ CDU.CSU.ses[["alpha"]]
 \label{fig:AfD-SES1}
 \end{center}
 
-This simply follows the data with some delay. This is logical: when you put beta=gamma=FALSE your only remaining co{\"e}fficient is alpha, which is a single exponential smoothing of the observed values. When you do not propose a value for alpha, HoltWinters will determine that value that minimizes an error function. This value is here: $\alpha$=\Sexpr{round(CDU.CSU.ses[["alpha"]],3)}.
+This simply follows the data with some delay. This is logical: when you put beta=gamma=FALSE your only remaining co{\"e}fficient is alpha, which is a single exponential smoothing of the observed values. When you do not propose a value for alpha, HoltWinters will determine that value that minimizes an error function. This value is here: $\alpha$=\Sexpr{round(CDU.CSU.ses[["alpha"]],3)} which is equivalent to the naive prediction method which simply says: $y_{i+1}=y_{i}$.
+
+A test for the quality of the model is the Sum of Squared Errors (SSE):
+
+<<>>=
+CDU.CSU.ses$SSE
+@
 
 We can make a forecast (for 5 months: h=5) based on this model:
 
-<<label=SES2,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=SES2,fig=TRUE,include=FALSE, echo=TRUE>>=
 CDU.CSU.fc.ses <- forecast.HoltWinters(CDU.CSU.ses, h=5)
 CDU.CSU.fc.ses
 plot.forecast(CDU.CSU.fc.ses)
@@ -323,10 +352,10 @@ plot.forecast(CDU.CSU.fc.ses)
 \label{fig:AfD-SES2}
 \end{center}
 
-This method (Simple Exponential Smoothing) is not appropriate for the CDU.CSU-data which have a clear trend and seasonality. There is a check for the appropriateness of SSE. The in-sample forecast errors are stored in ''residuals" and there should be no correlation between forecast errors of successive predictions. This can be viewed with the ''acf"-function:
+This method (Simple Exponential Smoothing) is not appropriate for the CDU.CSU-data which have a clear trend and seasonality. There is a check for the appropriateness of SSE. The in-sample forecast errors are stored in ''residuals" and there should be no correlation between forecast errors of successive predictions. This can be viewed with the ''Acf"-function from the ''forecast" package:
 
-<<label=SESauto,fig=TRUE,include=FALSE, echo=FALSE>>=
-acf(CDU.CSU.fc.ses$residuals, lag.max=20, na.action=na.omit)
+<<label=SESauto,fig=TRUE,include=FALSE, echo=TRUE>>=
+Acf(CDU.CSU.fc.ses$residuals, lag.max=20, na.action=na.omit)
 @
 
 \begin{center}
@@ -335,15 +364,29 @@ acf(CDU.CSU.fc.ses$residuals, lag.max=20, na.action=na.omit)
 \label{fig:AfD-SESauto}
 \end{center}
 
-and tested with the ''Box"-test:
+There is some evidence of autocorrelation with lag=11 which is consistent with a seasonality of 12 months. A test for autocorrelation between the residuals is the ''Box"-test:
 
 <<>>=
 Box.test(CDU.CSU.fc.ses$residuals, lag=20, type="Ljung-Box")
 @
 
-The residuals should be normaly distributed:
+The p-value is just above 5\% so we can assume some seasonality.
 
-<<label=SESres,fig=TRUE,include=FALSE, echo=FALSE>>=
+The residuals should also be normaly distributed:
+
+<<label=SESres1,fig=TRUE,include=FALSE, echo=TRUE>>=
+plotForecastErrors(CDU.CSU.fc.ses$residuals[-1])
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-SESres1}
+\captionof{figure}{Plot of residuals}
+\label{fig:AfD-SESres1}
+\end{center}
+
+or with qqnorm:
+
+<<label=SESres2,fig=TRUE,include=FALSE, echo=TRUE>>=
 res <- as.data.frame(CDU.CSU.fc.ses$residuals)$x
 res[1] <- 0
 qqnorm(res)
@@ -351,16 +394,16 @@ qqline(res,col="red")
 @
 
 \begin{center}
-\includegraphics[width=0.5\textwidth]{AfD-SESres}
-\captionof{figure}{Plot of residuals}
-\label{fig:AfD-SESres}
+\includegraphics[width=0.5\textwidth]{AfD-SESres2}
+\captionof{figure}{qqnorm of residuals}
+\label{fig:AfD-SESres2}
 \end{center}
 
-This does not bring greater clarity!
+This seem to be OK.
 
 \subsubsection{Double Exponential Smoothing: there is a trend but no seasonality: HoltWinters with gamma=FALSE}
 
-<<label=DES1,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=DES1,fig=TRUE,include=FALSE, echo=TRUE>>=
 CDU.CSU.des <- HoltWinters(month.CDU.CSU.ts, gamma=FALSE)
 plot(CDU.CSU.des)
 CDU.CSU.des[["alpha"]]
@@ -373,9 +416,17 @@ CDU.CSU.des[["beta"]]
 \label{fig:AfD-DES1}
 \end{center}
 
+The in-sample forecasts are rather good, although they lag the observed values.
+
+A test for the quality of the forecast is the Sum of Squared Errors (SSE):
+
+<<>>=
+CDU.CSU.des$SSE
+@
+
 Forecast (for 5 months: h=5) based on this model:
 
-<<label=DES2,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=DES2,fig=TRUE,include=FALSE, echo=TRUE>>=
 CDU.CSU.fc.des <- forecast.HoltWinters(CDU.CSU.des, h=5)
 CDU.CSU.fc.des
 plot.forecast(CDU.CSU.fc.des)
@@ -386,5 +437,138 @@ plot.forecast(CDU.CSU.fc.des)
 \captionof{figure}{Double Exponential Smoothing Forecast based on CDU.CSU polls 2013}
 \label{fig:AfD-DES2}
 \end{center}
+
+<<label=DESauto,fig=TRUE,include=FALSE, echo=TRUE>>=
+Acf(CDU.CSU.fc.des$residuals, lag.max=20, na.action=na.omit)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-DESauto}
+\captionof{figure}{Correlation beween residuals of at different time points}
+\label{fig:AfD-DESauto}
+\end{center}
+
+There is some evidence of autocorrelation with lag=11 which is consistent with a seasonality of 12 months. A test for autocorrelation between the residuals is the ''Box"-test:
+
+<<>>=
+Box.test(CDU.CSU.fc.des$residuals, lag=20, type="Ljung-Box")
+@
+
+The p-value is markedly above 5\% so we can keep the null-hypotheses of no autocorrelation..
+
+The residuals should also be normaly distributed:
+
+<<label=DESres1,fig=TRUE,include=FALSE, echo=TRUE>>=
+plotForecastErrors(CDU.CSU.fc.des$residuals[-c(1,2)])
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-DESres1}
+\captionof{figure}{Plot of residuals}
+\label{fig:AfD-DESres1}
+\end{center}
+
+or with qqnorm:
+
+<<label=DESres2,fig=TRUE,include=FALSE, echo=TRUE>>=
+res <- as.data.frame(CDU.CSU.fc.des$residuals)$x
+res[1] <- 0
+qqnorm(res)
+qqline(res,col="red")
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-DESres2}
+\captionof{figure}{qqnorm of residuals}
+\label{fig:AfD-DESres2}
+\end{center}
+
+\subsubsection{Triple Exponential Smoothing: there is a trend and seasonality: HoltWinters with alpha, beta and gamma}
+
+<<label=TES1,fig=TRUE,include=FALSE, echo=TRUE>>=
+CDU.CSU.tes <- HoltWinters(month.CDU.CSU.ts)
+plot(CDU.CSU.tes)
+CDU.CSU.tes[["alpha"]]
+CDU.CSU.tes[["beta"]]
+CDU.CSU.tes[["gamma"]]
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-TES1}
+\captionof{figure}{Triple Exponential Smoothing of CDU.CSU polls 2013}
+\label{fig:AfD-TES1}
+\end{center}
+
+\begin{itemize}
+  \item The value for alpha is rather high, indicating that only the present and the former observed value play a roll in predicting the next value. 
+  \item The value of beta is low, which means that the slope is only adjusted very gradually. This agrees with the observation that the slope is almost constant, and thus practically equal to the initial value of the slope.
+  \item Gamma is high indicating that the estimate of the seasonal component is based on the most recent observations.
+\end{itemize}
+
+The in-sample forecasts are rather good and Sum of Squared Errors (SSE) is:
+
+<<>>=
+CDU.CSU.tes$SSE
+@
+
+The best value up to now.
+
+Forecast (for 5 months: h=5) based on this model:
+
+<<label=TES2,fig=TRUE,include=FALSE, echo=TRUE>>=
+CDU.CSU.fc.tes <- forecast.HoltWinters(CDU.CSU.tes, h=5)
+CDU.CSU.fc.tes
+plot.forecast(CDU.CSU.fc.tes)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-TES2}
+\captionof{figure}{Triple Exponential Smoothing Forecast based on CDU.CSU polls 2013}
+\label{fig:AfD-TES2}
+\end{center}
+
+<<label=TESauto,fig=TRUE,include=FALSE, echo=TRUE>>=
+Acf(CDU.CSU.fc.tes$residuals, lag.max=20, na.action=na.omit)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-TESauto}
+\captionof{figure}{Correlation beween residuals of at different time points}
+\label{fig:AfD-TESauto}
+\end{center}
+
+No autocorrelation. A test for autocorrelation between the residuals is the ''Box"-test:
+
+<<>>=
+Box.test(CDU.CSU.fc.tes$residuals, lag=20, type="Ljung-Box")
+@
+
+The p-value is very high so we can keep the null-hypotheses of no autocorrelation..
+
+The residuals should also be normaly distributed:
+
+<<label=TESres1,fig=TRUE,include=FALSE, echo=TRUE>>=
+plotForecastErrors(CDU.CSU.fc.tes$residuals[-c(1:12)])
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-TESres1}
+\captionof{figure}{Plot of residuals}
+\label{fig:AfD-TESres1}
+\end{center}
+
+or with qqnorm:
+
+<<label=TESres2,fig=TRUE,include=FALSE, echo=TRUE>>=
+qqnorm(CDU.CSU.fc.tes$residuals[-c(1:12)])
+qqline(CDU.CSU.fc.tes$residuals[-c(1:12)],col="red")
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-TESres2}
+\captionof{figure}{qqnorm of residuals}
+\label{fig:AfD-TESres2}
+\end{center}
+
 
 \end{document}
