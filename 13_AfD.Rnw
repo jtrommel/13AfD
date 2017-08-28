@@ -233,7 +233,7 @@ Let's first group the results by party, year, month and summarize the mean poll 
 poll.results.13.g %>% 
   select(Date, year, party, poll.res) %>% 
   group_by(party, year, month(Date)) %>% 
-  summarise(month.avg=round(mean(poll.res),2)) -> monthly.avg
+  summarise(month.avg=round(mean(poll.res, na.rm=TRUE),2)) -> monthly.avg
 monthly.avg %>% rename(maand=`month(Date)`) -> monthly.avg
 monthly.avg$datum <- ymd("2009/01/01")
 for (i in (1:nrow(monthly.avg))) {
@@ -570,5 +570,55 @@ qqline(CDU.CSU.fc.tes$residuals[-c(1:12)],col="red")
 \label{fig:AfD-TESres2}
 \end{center}
 
+\section{Let's put everything in a function}
+
+<<>>=
+HltWntrs <- function(df.ts) {
+  HW <- HoltWinters(df.ts)
+  paramHW <- data.frame(alpha=HW$alpha[[1]], beta=HW$beta[[1]], gamma=HW$gamma[[1]], SSE=HW$SSE)
+  HW.fc <- forecast.HoltWinters(HW, h=1)
+  forecastHW <- data.frame(y=HW.fc[["mean"]], lo95=HW.fc[["lower"]][1,2], hi95=HW.fc[["upper"]][1,2])
+  return(list(param=paramHW,frcst=forecastHW))
+}
+@
+
+<<>>=
+election.result %>% select(-c(Date,Polling.Firm,Lead,year)) -> prty.res
+prty.res <- prty.res[,order(names(prty.res))]
+y <- election.result[,-c(3:10)]
+y[,5:12] <- prty.res
+mytable.param <- data.frame(party=c("O"), alpha=0, beta=0, gamma=0, SSE=0, stringsAsFactors=FALSE)
+mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, stringsAsFactors=FALSE)
+for (i in (1:7)) {
+  acro <- c("CDU.CSU", "FDP", "Grune", "LINKE", "Others", "PIRATEN", "SPD")
+  monthly.avg %>% filter(party==acro[i]) %>% 
+    select(party, datum, month.avg) %>% 
+    arrange(datum) %>% 
+    select(party, year, month.avg)-> month.prty
+    if (acro[i]=="AfD") {
+      month.prty <- month.prty[complete.cases(month.prty),]
+      startdt <- c(2013,4)
+      month.prty.ts <- ts(month.prty[,3], start=startdt, end=c(2013,9), frequency=1)
+      } else {
+    if (acro[i]=="PIRATEN") {
+      month.prty <- month.prty[complete.cases(month.prty),]
+      startdt <- c(2011,9)
+      month.prty.ts <- ts(month.prty[,3], start=startdt, end=c(2013,9), frequency=12)
+    } else {
+      startdt <- c(2009,10)
+      month.prty.ts <- ts(month.prty[,3], start=startdt, end=c(2013,9), frequency=12)
+    }
+}
+  HltWntrs(month.prty.ts)
+  mytable.param[i,1] <- acro[i]
+  mytable.param[i,2:5] <- HltWntrs(month.prty.ts)$param
+  mytable.pred[i,1] <- acro[i]
+  mytable.pred[i,2] <- y[i+5]
+  mytable.pred[i,3:5] <- round(HltWntrs(month.prty.ts)$frcst,2)
+}
+  print(mytable.param)
+  mytable.pred$diff <- mytable.pred$predict - mytable.pred$result
+  print(mytable.pred)
+@
 
 \end{document}
