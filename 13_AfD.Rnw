@@ -588,7 +588,7 @@ prty.res <- prty.res[,order(names(prty.res))]
 y <- election.result[,-c(3:10)]
 y[,5:12] <- prty.res
 mytable.param <- data.frame(party=c("O"), alpha=0, beta=0, gamma=0, SSE=0, stringsAsFactors=FALSE)
-mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, stringsAsFactors=FALSE)
+mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, naive=0, stringsAsFactors=FALSE)
 for (i in (1:7)) {
   acro <- c("CDU.CSU", "FDP", "Grune", "LINKE", "Others", "PIRATEN", "SPD")
   monthly.avg %>% filter(party==acro[i]) %>% 
@@ -608,17 +608,29 @@ for (i in (1:7)) {
       startdt <- c(2009,10)
       month.prty.ts <- ts(month.prty[,3], start=startdt, end=c(2013,9), frequency=12)
     }
-}
+      }
+  # Storing the timeseries per party in time series object with the party name
+  var.name <- acro[i]
+  assign(var.name,month.prty.ts)
+  #
   HltWntrs(month.prty.ts)
   mytable.param[i,1] <- acro[i]
   mytable.param[i,2:5] <- HltWntrs(month.prty.ts)$param
   mytable.pred[i,1] <- acro[i]
   mytable.pred[i,2] <- y[i+5]
   mytable.pred[i,3:5] <- round(HltWntrs(month.prty.ts)$frcst,2)
+  mytable.pred[i,6] <- month.prty[nrow(month.prty),3]
 }
   print(mytable.param)
-  mytable.pred$diff <- mytable.pred$predict - mytable.pred$result
+  mytable.pred$diff.HW <- mytable.pred$predict - mytable.pred$result
+  mytable.pred$diff.naive <- mytable.pred$naive - mytable.pred$result
   print(mytable.pred)
+  SSE.HW <- sum(mytable.pred$diff.HW^2)
+  SSE.naive <- sum(mytable.pred$diff.naive^2)
+  SSE.HW
+  SSE.naive
 @
+
+\textbf{Conclusion}: the polls predict the results well: they all fall within the 95\% confidence interval. Fancy prediction methods like HoltWinters with the full complement of alpha, beta and gamme are not necessary. The naive method, based on the average of the last month of polling before the election gives a result that is as good. A last try could be a HoltWinters with alpha and beta, and gamma=FALSE based on the, non averaged, results of the last days of polling.
 
 \end{document}
