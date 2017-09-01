@@ -76,9 +76,9 @@ plotForecastErrors <- function(forecasterrors) {
 
 <<>>=
 CI95 <- function(x) {
-  n <- length(x)
-  xbar <- mean(x)
-  saccent <- sd(x)
+  n <- sum(!is.na(x))
+  xbar <- mean(x, na.rm=TRUE)
+  saccent <- sd(x, na.rm=TRUE)
   alfa <- 0.05
   t0 <- qt(1-alfa/2,n-1)
   SE <- t0*saccent/sqrt(n)
@@ -603,8 +603,15 @@ prty.res <- prty.res[,order(names(prty.res))]
 y <- election.result[,-c(3:10)]
 y[,5:12] <- prty.res
 mytable.param <- data.frame(party=c("O"), alpha=0, beta=0, gamma=0, SSE=0, stringsAsFactors=FALSE)
-mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, naive=0, stringsAsFactors=FALSE)
+mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, low95=0, naive=0, high95=0, stringsAsFactors=FALSE)
 for (i in (1:7)) {
+  if (i==1) {k <- 1}
+  if (i==2) {k <- 3}
+  if (i==3) {k <- 5}
+  if (i==4) {k <- 4}
+  if (i==5) {k <- 8}
+  if (i==6) {k <- 6}
+  if (i==7) {k <- 2}
   acro <- c("CDU.CSU", "FDP", "Grune", "LINKE", "Others", "PIRATEN", "SPD")
   monthly.avg %>% filter(party==acro[i]) %>% 
     select(party, datum, month.avg) %>% 
@@ -634,7 +641,9 @@ for (i in (1:7)) {
   mytable.pred[i,1] <- acro[i]
   mytable.pred[i,2] <- y[i+5]
   mytable.pred[i,3:5] <- round(HltWntrs(month.prty.ts)$frcst,2)
-  mytable.pred[i,6] <- month.prty[nrow(month.prty),3]
+  poll.results.13 %>% 
+    select(Date, k+2) %>% filter(year(Date)==2013 & month(Date)==9) -> last.month
+  mytable.pred[i,6:8] <- CI95(as.vector(t(last.month[2])))
 }
   print(mytable.param)
   mytable.pred$diff.HW <- mytable.pred$predict - mytable.pred$result
@@ -646,7 +655,7 @@ for (i in (1:7)) {
   SSE.naive
 @
 
-\textbf{Conclusion}: the polls predict the results well: they all fall within the 95\% confidence interval. Fancy prediction methods like HoltWinters with the full complement of alpha, beta and gamme are not necessary. The naive method, based on the average of the last month of polling before the election gives a result that is as good. A last try could be a HoltWinters with alpha and beta, and gamma=FALSE based on the, non averaged, results of the last days of polling. However this is problematic because getting these data into a time series is difficult because the frequency is not known. Maybe a simple linear model?
+\textbf{Conclusion}: the HoltWinters prediction based on the polls give 95\%-confidence intervals that contain the actual result.  The naive method, based on the average of the last month of polling before the election gives worse confidence intervals. Maybe a simple linear model?
 
 \section{Linear model based on data of last month of polling}
 
