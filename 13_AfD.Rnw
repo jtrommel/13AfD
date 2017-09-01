@@ -74,6 +74,21 @@ plotForecastErrors <- function(forecasterrors) {
 }
 @
 
+<<>>=
+CI95 <- function(x) {
+  n <- length(x)
+  xbar <- mean(x)
+  saccent <- sd(x)
+  alfa <- 0.05
+  t0 <- qt(1-alfa/2,n-1)
+  SE <- t0*saccent/sqrt(n)
+  low95 <- xbar - SE
+  high95 <- xbar + SE
+  result <- data.frame(low95=round(low95,2), xbar=round(xbar,2), high95=round(high95,2))
+  return(result)
+}
+@
+
 \section{2017-08-11}
 
 Getting the poll-results and cleaning up:
@@ -711,16 +726,7 @@ The average for the last month (august) is:
 
 <<>>=
 poll.results %>% select(Fieldwork.date, AfD) %>% filter(month(Fieldwork.date)==8) -> last.month.AfD
-n <- nrow(last.month.AfD)
-xbar <- mean(last.month.AfD$AfD)
-saccent <- sd(last.month.AfD$AfD)
-alfa <- 0.05
-t0 <- qt(1-alfa/2,n-1)
-low95 <- xbar - t0*saccent/sqrt(n)
-high95 <- xbar + t0*saccent/sqrt(n)
-low95
-xbar
-high95
+CI95(last.month.AfD$AfD)
 @
 
 \textbf{Forecast overanderd: <5\%: 0\%, ]5\%-10\%]: 90\%, ]10\%-15\%]: 10\% and >=15\%: 0\%.}
