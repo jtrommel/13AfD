@@ -631,6 +631,98 @@ for (i in (1:7)) {
   SSE.naive
 @
 
-\textbf{Conclusion}: the polls predict the results well: they all fall within the 95\% confidence interval. Fancy prediction methods like HoltWinters with the full complement of alpha, beta and gamme are not necessary. The naive method, based on the average of the last month of polling before the election gives a result that is as good. A last try could be a HoltWinters with alpha and beta, and gamma=FALSE based on the, non averaged, results of the last days of polling.
+\textbf{Conclusion}: the polls predict the results well: they all fall within the 95\% confidence interval. Fancy prediction methods like HoltWinters with the full complement of alpha, beta and gamme are not necessary. The naive method, based on the average of the last month of polling before the election gives a result that is as good. A last try could be a HoltWinters with alpha and beta, and gamma=FALSE based on the, non averaged, results of the last days of polling. However this is problematic because getting these data into a time series is difficult because the frequency is not known. Maybe a simple linear model?
+
+\section{Linear model based on data of last month of polling}
+
+<<>>=
+linmod.pred <- data.frame(party=c("O"), result=0, predict=0, diff.lm=0, stringsAsFactors=FALSE)
+for (i in (1:8)) {
+  acro <- c("CDU.CSU", "SPD", "FDP", "LINKE", "Grune", "PIRATEN", "AfD", "Others")
+  poll.results.13 %>% select(Date, i+2) %>% filter(year(Date)==2013 & month(Date)==9) -> x
+  colnames(x)[2] <- "poll"
+  fit.x <- lm(poll ~ Date, data=x, na.action=na.omit)
+  new.x <- data.frame(Date=as.Date(c("2013-09-21","2013-09-22")))
+  linmod.pred[i,1] <- acro[i]
+  linmod.pred[i,2] <- election.result[i+2]
+  linmod.pred[i,3] <- predict(fit.x, new.x)[2]
+  linmod.pred[i,4] <- linmod.pred[i,2] - linmod.pred[i,3]
+}
+linmod.pred
+SSE.lm <- sum(linmod.pred$diff.lm^2)
+SSE.lm
+@
+
+No: the naive model based on monthly average is the best!
+
+\section{2013-09-01}
+
+<<echo=TRUE>>=
+# Getting the data
+writeday <- ymd("2017-09-01")
+GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
+GermElurl %>% 
+  read_html %>%
+  html_nodes("table") -> tablelist
+poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
+# Cleaning up
+# Rename vars to names of political parties
+poll.results <- rename(poll.results, 
+                       CDUCSU = Var.4, 
+                       SPD = Var.5, 
+                       DieLinke = Var.6, 
+                       Grune = Var.7, 
+                       FDP = Var.8, 
+                       AfD =  Var.9)
+# Remove (double) first row
+poll.results <- poll.results[-1,]
+# Get rid of the Unicode characters
+n <- nrow(poll.results)
+for (i in (1:n)) {
+  x <- poll.results$Fieldwork.date[i]
+  poll.results$Fieldwork.date[i] <- 
+    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
+           substr(x,nchar(x)-10,nchar(x)),
+           substr(x,nchar(x)-9,nchar(x)))
+}
+# End.date in date-format
+poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
+# Get rid of last three rows
+poll.results <- poll.results[1:(n-3),]
+# Keep only the data up until the day of writing this section
+poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+@
+
+Plot of AfD-polls:
+
+<<label=AfD2,fig=TRUE,include=FALSE, echo=TRUE>>=
+ggplot(data=poll.results,aes(x=Fieldwork.date)) + 
+  geom_point(aes(y=AfD),colour="black") +
+  stat_smooth(aes(y=AfD))
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-AfD2}
+\captionof{figure}{Polling results for AfD - 01.09.2017}
+\label{fig:AfD2}
+\end{center}
+
+The average for the last month (august) is:
+
+<<>>=
+poll.results %>% select(Fieldwork.date, AfD) %>% filter(month(Fieldwork.date)==8) -> last.month.AfD
+n <- nrow(last.month.AfD)
+xbar <- mean(last.month.AfD$AfD)
+saccent <- sd(last.month.AfD$AfD)
+alfa <- 0.05
+t0 <- qt(1-alfa/2,n-1)
+low95 <- xbar - t0*saccent/sqrt(n)
+high95 <- xbar + t0*saccent/sqrt(n)
+low95
+xbar
+high95
+@
+
+\textbf{Forecast overanderd: <5\%: 0\%, ]5\%-10\%]: 90\%, ]10\%-15\%]: 10\% and >=15\%: 0\%.}
 
 \end{document}
