@@ -40,7 +40,6 @@
 \SweaveOpts{concordance=TRUE,prefix.string=AfD}
 \maketitle
 
-
 <<>>=
 library(rvest)
 library(tidyverse)
@@ -677,7 +676,7 @@ SSE.lm <- sum(linmod.pred$diff.lm^2)
 SSE.lm
 @
 
-No: the naive model based on monthly average is the best!
+No: the HoltWinters model based on the monthly average over the whole period is the best!
 
 \section{2013-09-01}
 
@@ -738,6 +737,93 @@ poll.results %>% select(Fieldwork.date, AfD) %>% filter(month(Fieldwork.date)==8
 CI95(last.month.AfD$AfD)
 @
 
+Let's do a double exponential smoothing
+
+<<>>=
+fit <- HoltWinters(last.month.AfD$AfD, gamma=FALSE)
+as.data.frame(fit$fitted)[,1]
+@
+
 \textbf{Forecast overanderd: <5\%: 0\%, ]5\%-10\%]: 90\%, ]10\%-15\%]: 10\% and >=15\%: 0\%.}
+
+\section{2017-09-08}
+
+<<echo=TRUE>>=
+# Getting the data
+writeday <- ymd("2017-09-08")
+GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
+GermElurl %>% 
+  read_html %>%
+  html_nodes("table") -> tablelist
+poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
+# Cleaning up
+# Rename vars to names of political parties
+poll.results <- rename(poll.results, 
+                       CDUCSU = Var.4, 
+                       SPD = Var.5, 
+                       DieLinke = Var.6, 
+                       Grune = Var.7, 
+                       FDP = Var.8, 
+                       AfD =  Var.9)
+# Remove (double) first row
+poll.results <- poll.results[-1,]
+# Get rid of the Unicode characters
+n <- nrow(poll.results)
+for (i in (1:n)) {
+  x <- poll.results$Fieldwork.date[i]
+  poll.results$Fieldwork.date[i] <- 
+    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
+           substr(x,nchar(x)-10,nchar(x)),
+           substr(x,nchar(x)-9,nchar(x)))
+}
+# End.date in date-format
+poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
+# Get rid of last three rows
+poll.results <- poll.results[1:(n-3),]
+# Keep only the data up until the day of writing this section
+poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+@
+
+Plot of AfD-polls:
+
+<<label=AfD3,fig=TRUE,include=FALSE, echo=TRUE>>=
+ggplot(data=poll.results,aes(x=Fieldwork.date)) + 
+  geom_point(aes(y=AfD),colour="black") +
+  stat_smooth(aes(y=AfD))
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-AfD3}
+\captionof{figure}{Polling results for AfD - 08.09.2017}
+\label{fig:AfD3}
+\end{center}
+
+<<echo=TRUE>>=
+poll.results %>% 
+  select(Fieldwork.date,AfD) %>% 
+  group_by(month(Fieldwork.date)) %>% 
+  summarise(maandgem=mean(AfD)) -> x
+fit <- HoltWinters(x$maandgem, alpha=0.5, gamma=FALSE)
+pred <- predict(fit,1,prediction.interval = TRUE)
+sigma <- (pred[2]-pred[3])/4
+mu <- pred[1]
+prob.under.10 <- pnorm(10,mu,sigma)
+prob.under.10
+@
+
+At the moment there are only 5 polls in september with higher results for AfD. This shifts the prediction well above 10\%. Let's not overdo it but switch to a ''I don't know" forecast: 50\% under 10\% and 50\% above 10\%.
+
+\textbf{Forecast 3: <5\%: 0\%, ]5\%-10\%]: 50\%, ]10\%-15\%]: 50\% and >=15\%: 0\%.}
+
+<<echo=TRUE>>=
+poll.results.13 %>% 
+  select(Date,SPD) %>% 
+  filter(year(Date)==2013) %>%
+  group_by(month(Date)) %>% 
+  summarise(maandgem=mean(SPD)) -> x
+fit <- HoltWinters(x$maandgem, alpha=0.5, gamma=FALSE)
+pred <- predict(fit,1,prediction.interval = TRUE)
+pred
+@
 
 \end{document}
