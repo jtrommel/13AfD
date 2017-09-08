@@ -584,7 +584,7 @@ qqline(CDU.CSU.fc.tes$residuals[-c(1:12)],col="red")
 \label{fig:AfD-TESres2}
 \end{center}
 
-\section{Let's put everything in a function}
+\subsection{Let's put everything in a function}
 
 <<>>=
 HltWntrs <- function(df.ts) {
@@ -652,6 +652,31 @@ for (i in (1:7)) {
   SSE.naive <- sum(mytable.pred$diff.naive^2)
   SSE.HW
   SSE.naive
+@
+
+\subsection{HoltWinters on the monthly averages of the year in which the election takes part}
+
+<<echo=TRUE>>=
+mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, in.interval="N", stringsAsFactors=FALSE)
+for (i in (1:8)) {
+  acro <- c("CDU.CSU", "SPD", "FDP", "LINKE", "Grune", "PIRATEN", "AfD", "Others")
+  if (i != 7) {
+  poll.results.13 %>% 
+    select(Date,i+2) %>% 
+    filter(year(Date)==2013) %>%
+    group_by(month(Date)) %>% 
+    summarise_at(c(2), mean, na.rm=TRUE) -> x
+  fit <- HoltWinters(x[2], gamma=FALSE)
+  pred <- predict(fit,1,prediction.interval = TRUE)
+  }
+  mytable.pred[i,1] <- acro[i]
+  mytable.pred[i,2] <- election.result[i+2]
+  mytable.pred[i,3] <- ifelse(i != 7, pred[1,1], c(0))
+  mytable.pred[i,4] <- ifelse(i != 7, pred[1,2], c(0))
+  mytable.pred[i,5] <- ifelse(i != 7, pred[1,3], c(0))
+  mytable.pred[i,6] <- ifelse(election.result[i+2] < pred[1,2] & election.result[i+2] > pred[1,3], "Yes", "No")
+}
+  mytable.pred
 @
 
 \textbf{Conclusion}: the HoltWinters prediction based on the polls give 95\%-confidence intervals that contain the actual result.  The naive method, based on the average of the last month of polling before the election gives worse confidence intervals. Maybe a simple linear model?
@@ -815,15 +840,5 @@ At the moment there are only 5 polls in september with higher results for AfD. T
 
 \textbf{Forecast 3: <5\%: 0\%, ]5\%-10\%]: 50\%, ]10\%-15\%]: 50\% and >=15\%: 0\%.}
 
-<<echo=TRUE>>=
-poll.results.13 %>% 
-  select(Date,SPD) %>% 
-  filter(year(Date)==2013) %>%
-  group_by(month(Date)) %>% 
-  summarise(maandgem=mean(SPD)) -> x
-fit <- HoltWinters(x$maandgem, alpha=0.5, gamma=FALSE)
-pred <- predict(fit,1,prediction.interval = TRUE)
-pred
-@
 
 \end{document}
