@@ -602,7 +602,7 @@ prty.res <- prty.res[,order(names(prty.res))]
 y <- election.result[,-c(3:10)]
 y[,5:12] <- prty.res
 mytable.param <- data.frame(party=c("O"), alpha=0, beta=0, gamma=0, SSE=0, stringsAsFactors=FALSE)
-mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, low95=0, naive=0, high95=0, stringsAsFactors=FALSE)
+mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, in.interval="N", stringsAsFactors=FALSE)
 for (i in (1:7)) {
   if (i==1) {k <- 1}
   if (i==2) {k <- 3}
@@ -640,19 +640,46 @@ for (i in (1:7)) {
   mytable.pred[i,1] <- acro[i]
   mytable.pred[i,2] <- y[i+5]
   mytable.pred[i,3:5] <- round(HltWntrs(month.prty.ts)$frcst,2)
-  poll.results.13 %>% 
-    select(Date, k+2) %>% filter(year(Date)==2013 & month(Date)==9) -> last.month
-  mytable.pred[i,6:8] <- CI95(as.vector(t(last.month[2])))
+  mytable.pred[i,6] <- ifelse(mytable.pred[i,2] > mytable.pred[i,4] & mytable.pred[i,2] < mytable.pred[i,5],"Y","N")
 }
   print(mytable.param)
   mytable.pred$diff.HW <- mytable.pred$predict - mytable.pred$result
-  mytable.pred$diff.naive <- mytable.pred$naive - mytable.pred$result
   print(mytable.pred)
   SSE.HW <- sum(mytable.pred$diff.HW^2)
-  SSE.naive <- sum(mytable.pred$diff.naive^2)
   SSE.HW
+@
+
+\subsection{Is a naive model better?}
+
+<<>>=
+election.result %>% select(-c(Date,Polling.Firm,Lead,year)) -> prty.res
+prty.res <- prty.res[,order(names(prty.res))]
+y <- election.result[,-c(3:10)]
+y[,5:12] <- prty.res
+mytable.pred <- data.frame(party=c("O"), result=0, lo95=0, naive=0, hi95=0, in.interval="N", stringsAsFactors=FALSE)
+for (i in (1:7)) {
+  if (i==1) {k <- 1}
+  if (i==2) {k <- 3}
+  if (i==3) {k <- 5}
+  if (i==4) {k <- 4}
+  if (i==5) {k <- 8}
+  if (i==6) {k <- 6}
+  if (i==7) {k <- 2}
+  acro <- c("CDU.CSU", "FDP", "Grune", "LINKE", "Others", "PIRATEN", "SPD")
+  mytable.pred[i,1] <- acro[i]
+  mytable.pred[i,2] <- y[i+5]
+  poll.results.13 %>% 
+    select(Date, k+2) %>% filter(year(Date)==2013 & month(Date)==9) -> last.month
+  mytable.pred[i,3:5] <- CI95(as.vector(t(last.month[2])))
+  mytable.pred[i,6] <- ifelse(mytable.pred[i,2] > mytable.pred[i,3] & mytable.pred[i,2] < mytable.pred[i,5],"Y","N")
+}
+  mytable.pred$diff.naive <- mytable.pred$naive - mytable.pred$result
+  print(mytable.pred)
+  SSE.naive <- sum(mytable.pred$diff.naive^2)
   SSE.naive
 @
+
+No
 
 \subsection{HoltWinters on the monthly averages of the year in which the election takes part}
 
@@ -671,15 +698,19 @@ for (i in (1:8)) {
   }
   mytable.pred[i,1] <- acro[i]
   mytable.pred[i,2] <- election.result[i+2]
-  mytable.pred[i,3] <- ifelse(i != 7, pred[1,1], c(0))
-  mytable.pred[i,4] <- ifelse(i != 7, pred[1,2], c(0))
-  mytable.pred[i,5] <- ifelse(i != 7, pred[1,3], c(0))
-  mytable.pred[i,6] <- ifelse(election.result[i+2] < pred[1,2] & election.result[i+2] > pred[1,3], "Yes", "No")
+  mytable.pred[i,3] <- ifelse(i != 7, round(pred[1,1],2), c(0))
+  mytable.pred[i,4] <- ifelse(i != 7, round(pred[1,3],2), c(0))
+  mytable.pred[i,5] <- ifelse(i != 7, round(pred[1,2],2), c(0))
+  mytable.pred[i,6] <- ifelse(election.result[i+2] > pred[1,3] & election.result[i+2] < pred[1,2], "Y", "N")
 }
+  mytable.pred$diff <- mytable.pred$predict - mytable.pred$result
   mytable.pred
+  SSE.HW2013 <- sum(mytable.pred$diff^2)
+  SSE.HW2013 <- SSE.HW2013 - mytable.pred[7,7]^2
+  SSE.HW2013
 @
 
-\textbf{Conclusion}: the HoltWinters prediction based on the polls give 95\%-confidence intervals that contain the actual result.  The naive method, based on the average of the last month of polling before the election gives worse confidence intervals. Maybe a simple linear model?
+\textbf{Conclusion}: the HoltWinters prediction based on monthly average of all the polls from 2009-2013 give 95\%-confidence intervals that ALL contain the actual result.  The naive method, based on the average of the last month of polling before the election gives worse confidence intervals. The HoltWintere prediction based on the monthly average of the polls in the election year (2103) also give worse confidence intervals. However: the interal lengths are different and considerably larger in the HoltWinters(all) model. When we look at the actual error of the prediction and take the SSE as a measure Naive wins overall, HoltWinters(all) is a close second, while HoltWinters(2013) a distant third. Maybe a simple linear model?
 
 \section{Linear model based on data of last month of polling}
 
@@ -701,7 +732,7 @@ SSE.lm <- sum(linmod.pred$diff.lm^2)
 SSE.lm
 @
 
-No: the HoltWinters model based on the monthly average over the whole period is the best!
+No: better than HoltWinters(2013) but not so good as Naive or HoltWinters(all).
 
 \section{2013-09-01}
 
