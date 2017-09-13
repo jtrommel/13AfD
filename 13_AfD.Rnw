@@ -916,7 +916,7 @@ Working with the weekly average instead of the monthly average:
 
 <<echo=TRUE>>=
 # Getting the data
-writeday <- ymd("2017-09-11")
+writeday <- ymd("2017-09-13")
 GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
 GermElurl %>% 
   read_html %>%
@@ -978,6 +978,40 @@ mu <- pred[1]
 prob.under.10 <- pnorm(10,mu,sigma)
 prob.under.10
 @
+
+\section{Which polling bureau gave the more accurate data in 2013}
+
+There is some variation in the results reported by the different polling firms:
+
+<<label=PollingFirm1,fig=TRUE,include=FALSE, echo=TRUE>>=
+poll.results.13.g %>% 
+  ggplot(aes(x=Date , y=poll.res)) + 
+  geom_line(aes(color=Polling.Firm)) + 
+  facet_grid(party ~ . , scales="free_y")
+@
+
+\begin{center}
+\includegraphics[width=0.7\textwidth]{AfD-PollingFirm1}
+\captionof{figure}{Polling results per party by the different polling bureaus}
+\label{fig:PollingFirm1}
+\end{center}
+
+How big is this variation? Figure ~\ref{fig:PollingFirm2} gives the standard deviation of the poll results per week for every party. It seems to hover around 2-3\% which is what we would expect with sample sizes of the order 1000 to 2500.
+
+<<label=PollingFirm2,fig=TRUE,include=FALSE, echo=TRUE>>=
+poll.results.13.g %>% 
+  group_by(party,week(Date)) %>% 
+  summarise(sd(poll.res), na.rm=TRUE) %>% 
+  ggplot(aes(x=`week(Date)`,y=`sd(poll.res)`)) + 
+  geom_line() +
+  facet_grid(party ~ .)
+@
+
+\begin{center}
+\includegraphics[width=0.7\textwidth]{AfD-PollingFirm2}
+\captionof{figure}{Standard deviation of the olling results per party per week}
+\label{fig:PollingFirm2}
+\end{center}
 
 
 
