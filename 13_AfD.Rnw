@@ -88,6 +88,38 @@ CI95 <- function(x) {
 }
 @
 
+<<>>=
+trj_clean <- function(df,x) {
+# Rename vars to names of political parties
+df <- rename(df, 
+                CDUCSU = Var.4, 
+                SPD = Var.5, 
+                DieLinke = Var.6, 
+                Grune = Var.7, 
+                FDP = Var.8, 
+                AfD =  Var.9)
+# Remove (double) first row
+df <- df[-1,]
+# Get rid of the Unicode characters
+n <- nrow(df)
+for (i in (1:n)) {
+  y <- df$Fieldwork.date[i]
+  df$Fieldwork.date[i] <- 
+    ifelse(substr(y,nchar(y)-10,nchar(y)-10) %in% c("1","2","3"), 
+    substr(y,nchar(y)-10,nchar(y)), 
+    substr(y,nchar(y)-9,nchar(y)))
+}
+# Fieldwork.date in date-format
+df$Fieldwork.date <- as.Date(df$Fieldwork.date,format="%d %B %Y")
+# Get rid of last three rows
+df <- df[1:(n-3),]
+# Keep only the data up until the day of writing this section
+df <- df[df$Fieldwork.date < x,]
+rownames(df) <- seq(length=nrow(df))
+return(df)
+}
+@
+
 \section{2017-08-11}
 
 Getting the poll-results and cleaning up:
@@ -102,32 +134,33 @@ GermElurl %>%
   read_html %>%
   html_nodes("table") -> tablelist
 poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
-# Cleaning up
-# Rename vars to names of political parties
-poll.results <- rename(poll.results, 
-                       CDUCSU = Var.4, 
-                       SPD = Var.5, 
-                       DieLinke = Var.6, 
-                       Grune = Var.7, 
-                       FDP = Var.8, 
-                       AfD =  Var.9)
-# Remove (double) first row
-poll.results <- poll.results[-1,]
-# Get rid of the Unicode characters
-n <- nrow(poll.results)
-for (i in (1:n)) {
-  x <- poll.results$Fieldwork.date[i]
-  poll.results$Fieldwork.date[i] <- 
-    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
-           substr(x,nchar(x)-10,nchar(x)),
-           substr(x,nchar(x)-9,nchar(x)))
-}
-# End.date in date-format
-poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
-# Get rid of last three rows
-poll.results <- poll.results[1:(n-3),]
-# Keep only the data up until the day of writing this section
-poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+poll.results <-trj_clean(poll.results,writeday)
+# # Cleaning up
+# # Rename vars to names of political parties
+# poll.results <- rename(poll.results, 
+#                        CDUCSU = Var.4, 
+#                        SPD = Var.5, 
+#                        DieLinke = Var.6, 
+#                        Grune = Var.7, 
+#                        FDP = Var.8, 
+#                        AfD =  Var.9)
+# # Remove (double) first row
+# poll.results <- poll.results[-1,]
+# # Get rid of the Unicode characters
+# n <- nrow(poll.results)
+# for (i in (1:n)) {
+#   x <- poll.results$Fieldwork.date[i]
+#   poll.results$Fieldwork.date[i] <- 
+#     ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
+#            substr(x,nchar(x)-10,nchar(x)),
+#            substr(x,nchar(x)-9,nchar(x)))
+# }
+# # End.date in date-format
+# poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
+# # Get rid of last three rows
+# poll.results <- poll.results[1:(n-3),]
+# # Keep only the data up until the day of writing this section
+# poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
 @
 
 Plot of AfD-polls:
@@ -1013,6 +1046,147 @@ poll.results.13.g %>%
 \label{fig:PollingFirm2}
 \end{center}
 
+<<>>=
+poll.results.13.g %>% select(Polling.Firm) %>% unique -> nms.polling.firms
+poll.results.13.g %>% select(party) %>% unique -> nms.parties
+mytable.polling.firm <- data.frame(Firm=nms.polling.firms,SSE=0)
+for (i in 1:length(nms.polling.firms$Polling.Firm)) {
+  pol.frm <- nms.polling.firms$Polling.Firm[i]
+  SSE.Polling.Firm <- 0
+  for (j in 1:length(nms.parties$party)) {
+    prty <- nms.parties$party[j]
+    poll.results.13.g %>% 
+      filter(year==2013) %>% 
+      group_by(Polling.Firm , party , week(Date)) %>% 
+      summarise(av.week=mean(poll.res , na.rm=TRUE)) %>% 
+      filter(Polling.Firm==pol.frm & party==prty) %>% 
+      as.data.frame() %>% 
+      select(av.week) %>% 
+      filter(av.week != "NaN") %>%
+      HoltWinters(gamma=FALSE) %>% 
+      predict(1, prediction.interval=TRUE) -> pred
+    SSE.Polling.Firm <- SSE.Polling.Firm + (pred[1]-election.result[prty])^2
+  }
+  mytable.polling.firm[i,2] <- SSE.Polling.Firm
+}
+mytable.polling.firm
+@
+
+Polling firm ''Forsa" comes out as the best dataset to use for prediction of the actual result. Its results are:
+
+<<>>=
+Forsa.result <- data.frame(party=nms.parties$party,prediction=0,result=0,diff=0)
+for (j in 1:length(nms.parties$party)) {
+    prty <- nms.parties$party[j]
+    poll.results.13.g %>% 
+      filter(year==2013) %>% 
+      group_by(Polling.Firm , party , week(Date)) %>% 
+      summarise(av.week=mean(poll.res , na.rm=TRUE)) %>% 
+      filter(Polling.Firm=="Forsa" & party==prty) %>% 
+      as.data.frame() %>% 
+      select(av.week) %>% 
+      filter(av.week != "NaN") %>%
+      HoltWinters(gamma=FALSE) %>% 
+      predict(1, prediction.interval=TRUE) -> pred
+    Forsa.result[j,2] <- pred[1]
+    Forsa.result[j,3] <- election.result[prty]
+    Forsa.result[j,4] <- Forsa.result[j,2] - Forsa.result[j,3]
+  }
+  Forsa.result
+@
+
+Maybe Forsa uses a larger sample size?
+
+<<label=SampleSize,fig=TRUE,include=FALSE, echo=TRUE>>=
+# First turn Sample.size (which are characters with a comma to seperate the thousands) into a numeric
+poll.results$Sample.size <- as.numeric(gsub(",","",poll.results$Sample.size))
+poll.results %>% select(Polling.firm,Sample.size) %>% ggplot(aes(x=Polling.firm,y=Sample.size)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-SampleSize}
+\captionof{figure}{Sample sizes used by the polling firms in 2017}
+\label{fig:SampleSize}
+\end{center}
+
+The median of ''Forsa" is above all others, except for ''Civey". However we cannot compare these with 2013 because there are a number of newcomers in the polling firms: Civey, Ipsos, Trend Research and YouGov. However: Civey only did polls in 2017 until april. So we can disqualify them.
+
+\section{2017-09-14}
+Birthday Raf!
+
+Make prediction for 2017 based on weekly average for polls in 2017 using only the Forsa data:
+
+<<echo=TRUE>>=
+# Getting the data
+writeday <- ymd("2017-09-14")
+GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
+GermElurl %>% 
+  read_html %>%
+  html_nodes("table") -> tablelist
+poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
+# Cleaning up
+# Rename vars to names of political parties
+poll.results <- rename(poll.results, 
+                       CDUCSU = Var.4, 
+                       SPD = Var.5, 
+                       DieLinke = Var.6, 
+                       Grune = Var.7, 
+                       FDP = Var.8, 
+                       AfD =  Var.9)
+# Remove (double) first row
+poll.results <- poll.results[-1,]
+# Get rid of the Unicode characters
+n <- nrow(poll.results)
+for (i in (1:n)) {
+  x <- poll.results$Fieldwork.date[i]
+  poll.results$Fieldwork.date[i] <- 
+    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
+           substr(x,nchar(x)-10,nchar(x)),
+           substr(x,nchar(x)-9,nchar(x)))
+}
+# End.date in date-format
+poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
+# Get rid of last three rows
+poll.results <- poll.results[1:(n-3),]
+# Keep only the data up until the day of writing this section
+poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+@
+
+Plot of AfD-polls:
+
+<<label=AfD5,fig=TRUE,include=FALSE, echo=TRUE>>=
+poll.results %>% filter(Polling.firm=="Forsa") %>% 
+  ggplot(aes(x=Fieldwork.date)) + 
+  geom_point(aes(y=AfD),colour="black") +
+  stat_smooth(aes(y=AfD))
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{AfD-AfD5}
+\captionof{figure}{Polling results for AfD from Forsa - 14.09.2017}
+\label{fig:AfD5}
+\end{center}
+
+
+<<echo=TRUE>>=
+poll.results %>% 
+  select(Polling.firm,Fieldwork.date,AfD) %>% 
+  filter(Polling.firm=="Forsa") %>%
+  group_by(week(Fieldwork.date)) %>% 
+  summarise(weekgem=mean(AfD)) -> x
+fit <- HoltWinters(x$weekgem, gamma=FALSE)
+fit
+pred.Forsa <- predict(fit,1,prediction.interval = TRUE)
+pred.Forsa
+sigma <- (pred.Forsa[2]-pred.Forsa[3])/4
+mu <- pred.Forsa[1]
+prob.under.10 <- pnorm(10,mu,sigma)
+prob.under.10
+@  
+
+In the details of the ''Forsa"-poll (\url{http://www.wahlrecht.de/umfragen/forsa.htm}) I find for the first time an indication of the percentage of the ''undecided/won't vote". It is about 26\%.
+
+\textbf{Forecast 4: <5\%: 0\%, ]5\%-10\%]: 76\%, ]10\%-15\%]: 24\% and >=15\%: 0\%.}
 
 
 \end{document}
