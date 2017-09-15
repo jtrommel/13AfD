@@ -40,7 +40,7 @@
 \SweaveOpts{concordance=TRUE,prefix.string=AfD}
 \maketitle
 
-<<>>=
+<<echo=FALSE>>=
 library(rvest)
 library(tidyverse)
 library(lubridate)
@@ -50,7 +50,7 @@ library(TTR)
 library(forecast)
 @
 
-<<>>=
+<<echo=FALSE>>=
 plotForecastErrors <- function(forecasterrors) {
   # make a histogram of the forecast errors:
   mybinsize <- IQR(forecasterrors)/4
@@ -73,7 +73,7 @@ plotForecastErrors <- function(forecasterrors) {
 }
 @
 
-<<>>=
+<<echo=FALSE>>=
 CI95 <- function(x) {
   n <- sum(!is.na(x))
   xbar <- mean(x, na.rm=TRUE)
@@ -88,7 +88,7 @@ CI95 <- function(x) {
 }
 @
 
-<<>>=
+<<echo=FALSE>>=
 trj_clean <- function(df,x) {
 # Rename vars to names of political parties
 df <- rename(df, 
@@ -126,7 +126,7 @@ Getting the poll-results and cleaning up:
 
 \url{https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017}
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 # Getting the data
 writeday <- ymd("2017-08-11")
 GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
@@ -139,7 +139,7 @@ poll.results <-trj_clean(poll.results,writeday)
 
 Plot of AfD-polls:
 
-<<label=AfD1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=AfD1,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=poll.results,aes(x=Fieldwork.date)) + 
   geom_point(aes(y=AfD),colour="black") +
   stat_smooth(aes(y=AfD))
@@ -161,7 +161,7 @@ How good are German polls in predicting the end result? Let's try it for the Bun
 
 \url{https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2013}
 
-<<>>=
+<<echo=FALSE>>=
 # Getting the data
 GermEl13url <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2013"
 GermEl13url %>% 
@@ -202,19 +202,19 @@ poll.results.13$Lead <- as.numeric(poll.results.13$Lead)
 
 Store the election results (first row) in a separate vector from the polling data, and delete the first row
 
-<<>>=
+<<echo=FALSE>>=
 election.result <- poll.results.13[1,]
 poll.results.13 <- poll.results.13[2:nrow(poll.results.13),]
 @
 
 
 Tidying the data:
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 poll.results.13.g <- gather(poll.results.13,"party","poll.res",3:10)
 @
 
 Getting a first picture:
-<<label=2013a,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=2013a,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=poll.results.13.g,aes(x=Date)) + 
   geom_line(aes(y=poll.res,colour=party)) 
 @
@@ -229,11 +229,11 @@ Something is wrong with the data of ''Others" at the end of September 2013. On t
 
 Correction:
 
-<<>>=
+<<echo=FALSE>>=
 poll.results.13.g$poll.res[poll.results.13.g$party=="Others" & poll.results.13.g$poll.res==40] <- 4.0 
 @
 
-<<label=2013b,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=2013b,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=poll.results.13.g,aes(x=Date)) + 
   geom_line(aes(y=poll.res,colour=party)) 
 @
@@ -250,7 +250,7 @@ The polling period is very long (4 years) and the fortunes of the parties change
 
 Let's first group the results by party, year, month and summarize the mean poll result per month and turn it in a time series object \footnote{''Using R for Time Seris Analysis", \url{http://a-little-book-of-r-for-time-series.readthedocs.io/en/latest/src/timeseries.html}}. The starting point of a time series object is a \textbf{vector} of the different readings of the value in time, with a fixed time-interval and sorted from earliest to latest. The poll's are not held on fixed dates so we first calculate the mean value of the polls for a month (or a week ...). We sort them per party and make a time series starting on Oct 2009 and ending in Sep 2013, with a monthly frequency (frequency=12):
 
-<<>>=
+<<echo=FALSE>>=
 poll.results.13.g %>% 
   select(Date, year, party, poll.res) %>% 
   group_by(party, year, month(Date)) %>% 
@@ -262,7 +262,7 @@ for (i in (1:nrow(monthly.avg))) {
 }
 @
 
-<<label=TimeSeries1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=TimeSeries1,fig=TRUE,include=FALSE, echo=FALSE>>=
 # A time series for CDU.CSU
 monthly.avg %>% filter(party=="CDU.CSU") %>% 
   select(datum, month.avg) %>% 
@@ -280,7 +280,7 @@ plot.ts(month.CDU.CSU.ts)
 
 \subsection{Effects of smoothing}
 
-<<label=TimeSeries2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=TimeSeries2,fig=TRUE,include=FALSE, echo=FALSE>>=
 # A smoothing with n=3 (three months rolling average)
 month.CDU.CSU.SMA3 <- SMA(month.CDU.CSU.ts, n=3)
 plot.ts(month.CDU.CSU.SMA3)
@@ -292,7 +292,7 @@ plot.ts(month.CDU.CSU.SMA3)
 \label{fig:AfD-TimeSeries2}
 \end{center}
 
-<<label=TimeSeries3,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=TimeSeries3,fig=TRUE,include=FALSE, echo=FALSE>>=
 # A smoothing with n=8 (three months rolling average)
 month.CDU.CSU.SMA8 <- SMA(month.CDU.CSU.ts, n=8)
 plot.ts(month.CDU.CSU.SMA8)
@@ -306,7 +306,7 @@ plot.ts(month.CDU.CSU.SMA8)
 
 \subsection{Decomposing: is there a trend? a seasonal component?}
 
-<<label=Decompose1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=Decompose1,fig=TRUE,include=FALSE, echo=FALSE>>=
 # Decomposing
 month.CDU.CSU.components <- decompose(month.CDU.CSU.ts)
 plot(month.CDU.CSU.components)
@@ -320,7 +320,7 @@ plot(month.CDU.CSU.components)
 
 There seems to be a gradual rise (trend) and a recurring pattern (seasonality): CDU.CSU seems to do well in winter! But the effect is small: the amplitude is about 1.5\% while the trend effect is 6\%. We can remove the seasonal effect:
 
-<<label=Decompose2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=Decompose2,fig=TRUE,include=FALSE, echo=FALSE>>=
 # Decomposing
 month.CDU.CSU.components <- decompose(month.CDU.CSU.ts)
 month.CDU.CSU.adj <- month.CDU.CSU.ts - month.CDU.CSU.components$seasonal
@@ -339,7 +339,7 @@ plot(month.CDU.CSU.adj)
 
 \subsubsection{Simple Exponential Smoothing: if there is no trend and no seasonality: HoltWinters with beta=FALSE and gamma=FALSE}
 
-<<label=SES1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=SES1,fig=TRUE,include=FALSE, echo=FALSE>>=
 CDU.CSU.ses <- HoltWinters(month.CDU.CSU.ts, beta=FALSE, gamma=FALSE)
 plot(CDU.CSU.ses)
 CDU.CSU.ses[["alpha"]]
@@ -355,13 +355,13 @@ This simply follows the data with some delay. This is logical: when you put beta
 
 A test for the quality of the model is the Sum of Squared Errors (SSE):
 
-<<>>=
+<<echo=FALSE>>=
 CDU.CSU.ses$SSE
 @
 
 We can make a forecast (for 5 months: h=5) based on this model:
 
-<<label=SES2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=SES2,fig=TRUE,include=FALSE, echo=FALSE>>=
 CDU.CSU.fc.ses <- forecast.HoltWinters(CDU.CSU.ses, h=5)
 CDU.CSU.fc.ses
 plot.forecast(CDU.CSU.fc.ses)
@@ -375,7 +375,7 @@ plot.forecast(CDU.CSU.fc.ses)
 
 This method (Simple Exponential Smoothing) is not appropriate for the CDU.CSU-data which have a clear trend and seasonality. There is a check for the appropriateness of SSE. The in-sample forecast errors are stored in ''residuals" and there should be no correlation between forecast errors of successive predictions. This can be viewed with the ''Acf"-function from the ''forecast" package:
 
-<<label=SESauto,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=SESauto,fig=TRUE,include=FALSE, echo=FALSE>>=
 Acf(CDU.CSU.fc.ses$residuals, lag.max=20, na.action=na.omit)
 @
 
@@ -387,7 +387,7 @@ Acf(CDU.CSU.fc.ses$residuals, lag.max=20, na.action=na.omit)
 
 There is some evidence of autocorrelation with lag=11 which is consistent with a seasonality of 12 months. A test for autocorrelation between the residuals is the ''Box"-test:
 
-<<>>=
+<<echo=FALSE>>=
 Box.test(CDU.CSU.fc.ses$residuals, lag=20, type="Ljung-Box")
 @
 
@@ -395,7 +395,7 @@ The p-value is just above 5\% so we can assume some seasonality.
 
 The residuals should also be normaly distributed:
 
-<<label=SESres1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=SESres1,fig=TRUE,include=FALSE, echo=FALSE>>=
 plotForecastErrors(CDU.CSU.fc.ses$residuals[-1])
 @
 
@@ -407,7 +407,7 @@ plotForecastErrors(CDU.CSU.fc.ses$residuals[-1])
 
 or with qqnorm:
 
-<<label=SESres2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=SESres2,fig=TRUE,include=FALSE, echo=FALSE>>=
 res <- as.data.frame(CDU.CSU.fc.ses$residuals)$x
 res[1] <- 0
 qqnorm(res)
@@ -424,7 +424,7 @@ This seem to be OK.
 
 \subsubsection{Double Exponential Smoothing: there is a trend but no seasonality: HoltWinters with gamma=FALSE}
 
-<<label=DES1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=DES1,fig=TRUE,include=FALSE, echo=FALSE>>=
 CDU.CSU.des <- HoltWinters(month.CDU.CSU.ts, gamma=FALSE)
 plot(CDU.CSU.des)
 CDU.CSU.des[["alpha"]]
@@ -441,13 +441,13 @@ The in-sample forecasts are rather good, although they lag the observed values.
 
 A test for the quality of the forecast is the Sum of Squared Errors (SSE):
 
-<<>>=
+<<echo=FALSE>>=
 CDU.CSU.des$SSE
 @
 
 Forecast (for 5 months: h=5) based on this model:
 
-<<label=DES2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=DES2,fig=TRUE,include=FALSE, echo=FALSE>>=
 CDU.CSU.fc.des <- forecast.HoltWinters(CDU.CSU.des, h=5)
 CDU.CSU.fc.des
 plot.forecast(CDU.CSU.fc.des)
@@ -459,7 +459,7 @@ plot.forecast(CDU.CSU.fc.des)
 \label{fig:AfD-DES2}
 \end{center}
 
-<<label=DESauto,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=DESauto,fig=TRUE,include=FALSE, echo=FALSE>>=
 Acf(CDU.CSU.fc.des$residuals, lag.max=20, na.action=na.omit)
 @
 
@@ -471,7 +471,7 @@ Acf(CDU.CSU.fc.des$residuals, lag.max=20, na.action=na.omit)
 
 There is some evidence of autocorrelation with lag=11 which is consistent with a seasonality of 12 months. A test for autocorrelation between the residuals is the ''Box"-test:
 
-<<>>=
+<<echo=FALSE>>=
 Box.test(CDU.CSU.fc.des$residuals, lag=20, type="Ljung-Box")
 @
 
@@ -479,7 +479,7 @@ The p-value is markedly above 5\% so we can keep the null-hypotheses of no autoc
 
 The residuals should also be normaly distributed:
 
-<<label=DESres1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=DESres1,fig=TRUE,include=FALSE, echo=FALSE>>=
 plotForecastErrors(CDU.CSU.fc.des$residuals[-c(1,2)])
 @
 
@@ -491,7 +491,7 @@ plotForecastErrors(CDU.CSU.fc.des$residuals[-c(1,2)])
 
 or with qqnorm:
 
-<<label=DESres2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=DESres2,fig=TRUE,include=FALSE, echo=FALSE>>=
 res <- as.data.frame(CDU.CSU.fc.des$residuals)$x
 res[1] <- 0
 qqnorm(res)
@@ -506,7 +506,7 @@ qqline(res,col="red")
 
 \subsubsection{Triple Exponential Smoothing: there is a trend and seasonality: HoltWinters with alpha, beta and gamma}
 
-<<label=TES1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=TES1,fig=TRUE,include=FALSE, echo=FALSE>>=
 CDU.CSU.tes <- HoltWinters(month.CDU.CSU.ts)
 plot(CDU.CSU.tes)
 CDU.CSU.tes[["alpha"]]
@@ -528,7 +528,7 @@ CDU.CSU.tes[["gamma"]]
 
 The in-sample forecasts are rather good and Sum of Squared Errors (SSE) is:
 
-<<>>=
+<<echo=FALSE>>=
 CDU.CSU.tes$SSE
 @
 
@@ -536,7 +536,7 @@ The best value up to now.
 
 Forecast (for 5 months: h=5) based on this model:
 
-<<label=TES2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=TES2,fig=TRUE,include=FALSE, echo=FALSE>>=
 CDU.CSU.fc.tes <- forecast.HoltWinters(CDU.CSU.tes, h=5)
 CDU.CSU.fc.tes
 plot.forecast(CDU.CSU.fc.tes)
@@ -548,7 +548,7 @@ plot.forecast(CDU.CSU.fc.tes)
 \label{fig:AfD-TES2}
 \end{center}
 
-<<label=TESauto,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=TESauto,fig=TRUE,include=FALSE, echo=FALSE>>=
 Acf(CDU.CSU.fc.tes$residuals, lag.max=20, na.action=na.omit)
 @
 
@@ -560,7 +560,7 @@ Acf(CDU.CSU.fc.tes$residuals, lag.max=20, na.action=na.omit)
 
 No autocorrelation. A test for autocorrelation between the residuals is the ''Box"-test:
 
-<<>>=
+<<echo=FALSE>>=
 Box.test(CDU.CSU.fc.tes$residuals, lag=20, type="Ljung-Box")
 @
 
@@ -568,7 +568,7 @@ The p-value is very high so we can keep the null-hypotheses of no autocorrelatio
 
 The residuals should also be normaly distributed:
 
-<<label=TESres1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=TESres1,fig=TRUE,include=FALSE, echo=FALSE>>=
 plotForecastErrors(CDU.CSU.fc.tes$residuals[-c(1:12)])
 @
 
@@ -580,7 +580,7 @@ plotForecastErrors(CDU.CSU.fc.tes$residuals[-c(1:12)])
 
 or with qqnorm:
 
-<<label=TESres2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=TESres2,fig=TRUE,include=FALSE, echo=FALSE>>=
 qqnorm(CDU.CSU.fc.tes$residuals[-c(1:12)])
 qqline(CDU.CSU.fc.tes$residuals[-c(1:12)],col="red")
 @
@@ -593,7 +593,7 @@ qqline(CDU.CSU.fc.tes$residuals[-c(1:12)],col="red")
 
 \subsection{Let's put everything in a function}
 
-<<>>=
+<<echo=FALSE>>=
 HltWntrs <- function(df.ts) {
   HW <- HoltWinters(df.ts)
   paramHW <- data.frame(alpha=HW$alpha[[1]], beta=HW$beta[[1]], gamma=HW$gamma[[1]], SSE=HW$SSE)
@@ -603,7 +603,7 @@ HltWntrs <- function(df.ts) {
 }
 @
 
-<<>>=
+<<echo=FALSE>>=
 election.result %>% select(-c(Date,Polling.Firm,Lead,year)) -> prty.res
 prty.res <- prty.res[,order(names(prty.res))]
 y <- election.result[,-c(3:10)]
@@ -658,7 +658,7 @@ for (i in (1:7)) {
 
 \subsection{Is a naive model better?}
 
-<<>>=
+<<echo=FALSE>>=
 election.result %>% select(-c(Date,Polling.Firm,Lead,year)) -> prty.res
 prty.res <- prty.res[,order(names(prty.res))]
 y <- election.result[,-c(3:10)]
@@ -690,7 +690,7 @@ No
 
 \subsection{HoltWinters on the monthly averages of the year in which the election takes part}
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, in.interval="N", stringsAsFactors=FALSE)
 for (i in (1:8)) {
   acro <- c("CDU.CSU", "SPD", "FDP", "LINKE", "Grune", "PIRATEN", "AfD", "Others")
@@ -719,7 +719,7 @@ for (i in (1:8)) {
 
 \subsection{HoltWinters on the weekly averages of the year in which the election takes part}
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 mytable.pred <- data.frame(party=c("O"), result=0, predict=0, lo95=0, hi95=0, in.interval="N", stringsAsFactors=FALSE)
 for (i in (1:8)) {
   acro <- c("CDU.CSU", "SPD", "FDP", "LINKE", "Grune", "PIRATEN", "AfD", "Others")
@@ -760,7 +760,7 @@ However: the interval lengths are different and considerably larger in the HoltW
 
 \section{Linear model based on data of last month of polling}
 
-<<>>=
+<<echo=FALSE>>=
 linmod.pred <- data.frame(party=c("O"), result=0, predict=0, diff.lm=0, stringsAsFactors=FALSE)
 for (i in (1:8)) {
   acro <- c("CDU.CSU", "SPD", "FDP", "LINKE", "Grune", "PIRATEN", "AfD", "Others")
@@ -782,7 +782,7 @@ No: better than HoltWinters(2013) but not so good as Naive or HoltWinters(all).
 
 \section{2013-09-01}
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 # Getting the data
 writeday <- ymd("2017-09-01")
 GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
@@ -795,7 +795,7 @@ poll.results <- trj_clean(poll.results , writeday)
 
 Plot of AfD-polls:
 
-<<label=AfD2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=AfD2,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=poll.results,aes(x=Fieldwork.date)) + 
   geom_point(aes(y=AfD),colour="black") +
   stat_smooth(aes(y=AfD))
@@ -809,14 +809,14 @@ ggplot(data=poll.results,aes(x=Fieldwork.date)) +
 
 The average for the last month (august) is:
 
-<<>>=
+<<echo=FALSE>>=
 poll.results %>% select(Fieldwork.date, AfD) %>% filter(month(Fieldwork.date)==8) -> last.month.AfD
 CI95(last.month.AfD$AfD)
 @
 
 Let's do a double exponential smoothing
 
-<<>>=
+<<echo=FALSE>>=
 fit <- HoltWinters(last.month.AfD$AfD, gamma=FALSE)
 as.data.frame(fit$fitted)[,1]
 @
@@ -825,7 +825,7 @@ as.data.frame(fit$fitted)[,1]
 
 \section{2017-09-08}
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 # Getting the data
 writeday <- ymd("2017-09-08")
 GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
@@ -838,7 +838,7 @@ poll.results <- trj_clean(poll.results , writeday)
 
 Plot of AfD-polls:
 
-<<label=AfD3,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=AfD3,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=poll.results,aes(x=Fieldwork.date)) + 
   geom_point(aes(y=AfD),colour="black") +
   stat_smooth(aes(y=AfD))
@@ -850,7 +850,7 @@ ggplot(data=poll.results,aes(x=Fieldwork.date)) +
 \label{fig:AfD3}
 \end{center}
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 poll.results %>% 
   select(Fieldwork.date,AfD) %>% 
   group_by(month(Fieldwork.date)) %>% 
@@ -871,7 +871,7 @@ At the moment there are only 5 polls in september with higher results for AfD. T
 
 Working with the weekly average instead of the monthly average:
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 # Getting the data
 writeday <- ymd("2017-09-13")
 GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
@@ -884,7 +884,7 @@ poll.results <- trj_clean(poll.results , writeday)
 
 Plot of AfD-polls:
 
-<<label=AfD4,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=AfD4,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=poll.results,aes(x=Fieldwork.date)) + 
   geom_point(aes(y=AfD),colour="black") +
   stat_smooth(aes(y=AfD))
@@ -896,7 +896,7 @@ ggplot(data=poll.results,aes(x=Fieldwork.date)) +
 \label{fig:AfD4}
 \end{center}
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 poll.results %>% 
   select(Fieldwork.date,AfD) %>% 
   group_by(week(Fieldwork.date)) %>% 
@@ -915,7 +915,7 @@ prob.under.10
 
 There is some variation in the results reported by the different polling firms:
 
-<<label=PollingFirm1,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=PollingFirm1,fig=TRUE,include=FALSE, echo=FALSE>>=
 poll.results.13.g %>% 
   ggplot(aes(x=Date , y=poll.res)) + 
   geom_line(aes(color=Polling.Firm)) + 
@@ -930,7 +930,7 @@ poll.results.13.g %>%
 
 How big is this variation? Figure ~\ref{fig:PollingFirm2} gives the standard deviation of the poll results per week for every party. It seems to hover around 2-3\% which is what we would expect with sample sizes of the order 1000 to 2500.
 
-<<label=PollingFirm2,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=PollingFirm2,fig=TRUE,include=FALSE, echo=FALSE>>=
 poll.results.13.g %>% 
   group_by(party,week(Date)) %>% 
   summarise(sd(poll.res), na.rm=TRUE) %>% 
@@ -945,7 +945,7 @@ poll.results.13.g %>%
 \label{fig:PollingFirm2}
 \end{center}
 
-<<>>=
+<<echo=FALSE>>=
 poll.results.13.g %>% select(Polling.Firm) %>% unique -> nms.polling.firms
 poll.results.13.g %>% select(party) %>% unique -> nms.parties
 mytable.polling.firm <- data.frame(Firm=nms.polling.firms,SSE=0)
@@ -973,7 +973,7 @@ mytable.polling.firm
 
 Polling firm ''Forsa" comes out as the best dataset to use for prediction of the actual result. Its results are:
 
-<<>>=
+<<echo=FALSE>>=
 Forsa.result <- data.frame(party=nms.parties$party,prediction=0,result=0,diff=0)
 for (j in 1:length(nms.parties$party)) {
     prty <- nms.parties$party[j]
@@ -996,7 +996,7 @@ for (j in 1:length(nms.parties$party)) {
 
 Maybe Forsa uses a larger sample size?
 
-<<label=SampleSize,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=SampleSize,fig=TRUE,include=FALSE, echo=FALSE>>=
 # First turn Sample.size (which are characters with a comma to seperate the thousands) into a numeric
 poll.results$Sample.size <- as.numeric(gsub(",","",poll.results$Sample.size))
 poll.results %>% select(Polling.firm,Sample.size) %>% ggplot(aes(x=Polling.firm,y=Sample.size)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
@@ -1015,7 +1015,7 @@ Birthday Raf!
 
 Make prediction for 2017 based on weekly average for polls in 2017 using only the Forsa data:
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 # Getting the data
 writeday <- ymd("2017-09-14")
 GermElurl <- "https://en.wikipedia.org/wiki/Opinion_polling_for_the_German_federal_election,_2017"
@@ -1028,7 +1028,7 @@ poll.results <- trj_clean(poll.results , writeday)
 
 Plot of AfD-polls:
 
-<<label=AfD5,fig=TRUE,include=FALSE, echo=TRUE>>=
+<<label=AfD5,fig=TRUE,include=FALSE, echo=FALSE>>=
 poll.results %>% filter(Polling.firm=="Forsa") %>% 
   ggplot(aes(x=Fieldwork.date)) + 
   geom_point(aes(y=AfD),colour="black") +
@@ -1042,7 +1042,7 @@ poll.results %>% filter(Polling.firm=="Forsa") %>%
 \end{center}
 
 
-<<echo=TRUE>>=
+<<echo=FALSE>>=
 poll.results %>% 
   select(Polling.firm,Fieldwork.date,AfD) %>% 
   filter(Polling.firm=="Forsa") %>%
