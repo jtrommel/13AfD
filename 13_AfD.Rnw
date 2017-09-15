@@ -135,32 +135,6 @@ GermElurl %>%
   html_nodes("table") -> tablelist
 poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
 poll.results <-trj_clean(poll.results,writeday)
-# # Cleaning up
-# # Rename vars to names of political parties
-# poll.results <- rename(poll.results, 
-#                        CDUCSU = Var.4, 
-#                        SPD = Var.5, 
-#                        DieLinke = Var.6, 
-#                        Grune = Var.7, 
-#                        FDP = Var.8, 
-#                        AfD =  Var.9)
-# # Remove (double) first row
-# poll.results <- poll.results[-1,]
-# # Get rid of the Unicode characters
-# n <- nrow(poll.results)
-# for (i in (1:n)) {
-#   x <- poll.results$Fieldwork.date[i]
-#   poll.results$Fieldwork.date[i] <- 
-#     ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
-#            substr(x,nchar(x)-10,nchar(x)),
-#            substr(x,nchar(x)-9,nchar(x)))
-# }
-# # End.date in date-format
-# poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
-# # Get rid of last three rows
-# poll.results <- poll.results[1:(n-3),]
-# # Keep only the data up until the day of writing this section
-# poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
 @
 
 Plot of AfD-polls:
@@ -816,32 +790,7 @@ GermElurl %>%
   read_html %>%
   html_nodes("table") -> tablelist
 poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
-# Cleaning up
-# Rename vars to names of political parties
-poll.results <- rename(poll.results, 
-                       CDUCSU = Var.4, 
-                       SPD = Var.5, 
-                       DieLinke = Var.6, 
-                       Grune = Var.7, 
-                       FDP = Var.8, 
-                       AfD =  Var.9)
-# Remove (double) first row
-poll.results <- poll.results[-1,]
-# Get rid of the Unicode characters
-n <- nrow(poll.results)
-for (i in (1:n)) {
-  x <- poll.results$Fieldwork.date[i]
-  poll.results$Fieldwork.date[i] <- 
-    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
-           substr(x,nchar(x)-10,nchar(x)),
-           substr(x,nchar(x)-9,nchar(x)))
-}
-# End.date in date-format
-poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
-# Get rid of last three rows
-poll.results <- poll.results[1:(n-3),]
-# Keep only the data up until the day of writing this section
-poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+poll.results <- trj_clean(poll.results , writeday)
 @
 
 Plot of AfD-polls:
@@ -884,32 +833,7 @@ GermElurl %>%
   read_html %>%
   html_nodes("table") -> tablelist
 poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
-# Cleaning up
-# Rename vars to names of political parties
-poll.results <- rename(poll.results, 
-                       CDUCSU = Var.4, 
-                       SPD = Var.5, 
-                       DieLinke = Var.6, 
-                       Grune = Var.7, 
-                       FDP = Var.8, 
-                       AfD =  Var.9)
-# Remove (double) first row
-poll.results <- poll.results[-1,]
-# Get rid of the Unicode characters
-n <- nrow(poll.results)
-for (i in (1:n)) {
-  x <- poll.results$Fieldwork.date[i]
-  poll.results$Fieldwork.date[i] <- 
-    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
-           substr(x,nchar(x)-10,nchar(x)),
-           substr(x,nchar(x)-9,nchar(x)))
-}
-# End.date in date-format
-poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
-# Get rid of last three rows
-poll.results <- poll.results[1:(n-3),]
-# Keep only the data up until the day of writing this section
-poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+poll.results <- trj_clean(poll.results , writeday)
 @
 
 Plot of AfD-polls:
@@ -955,32 +879,7 @@ GermElurl %>%
   read_html %>%
   html_nodes("table") -> tablelist
 poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
-# Cleaning up
-# Rename vars to names of political parties
-poll.results <- rename(poll.results, 
-                       CDUCSU = Var.4, 
-                       SPD = Var.5, 
-                       DieLinke = Var.6, 
-                       Grune = Var.7, 
-                       FDP = Var.8, 
-                       AfD =  Var.9)
-# Remove (double) first row
-poll.results <- poll.results[-1,]
-# Get rid of the Unicode characters
-n <- nrow(poll.results)
-for (i in (1:n)) {
-  x <- poll.results$Fieldwork.date[i]
-  poll.results$Fieldwork.date[i] <- 
-    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
-           substr(x,nchar(x)-10,nchar(x)),
-           substr(x,nchar(x)-9,nchar(x)))
-}
-# End.date in date-format
-poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
-# Get rid of last three rows
-poll.results <- poll.results[1:(n-3),]
-# Keep only the data up until the day of writing this section
-poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+poll.results <- trj_clean(poll.results , writeday)
 @
 
 Plot of AfD-polls:
@@ -1124,32 +1023,7 @@ GermElurl %>%
   read_html %>%
   html_nodes("table") -> tablelist
 poll.results <- as.data.frame(html_table(tablelist[1],fill=TRUE))
-# Cleaning up
-# Rename vars to names of political parties
-poll.results <- rename(poll.results, 
-                       CDUCSU = Var.4, 
-                       SPD = Var.5, 
-                       DieLinke = Var.6, 
-                       Grune = Var.7, 
-                       FDP = Var.8, 
-                       AfD =  Var.9)
-# Remove (double) first row
-poll.results <- poll.results[-1,]
-# Get rid of the Unicode characters
-n <- nrow(poll.results)
-for (i in (1:n)) {
-  x <- poll.results$Fieldwork.date[i]
-  poll.results$Fieldwork.date[i] <- 
-    ifelse(substr(x,nchar(x)-10,nchar(x)-10) %in% c("1","2","3"),
-           substr(x,nchar(x)-10,nchar(x)),
-           substr(x,nchar(x)-9,nchar(x)))
-}
-# End.date in date-format
-poll.results$Fieldwork.date <- as.Date(poll.results$Fieldwork.date,format="%d %B %Y")
-# Get rid of last three rows
-poll.results <- poll.results[1:(n-3),]
-# Keep only the data up until the day of writing this section
-poll.results %>% dplyr::filter(Fieldwork.date < writeday) -> poll.results
+poll.results <- trj_clean(poll.results , writeday)
 @
 
 Plot of AfD-polls:
